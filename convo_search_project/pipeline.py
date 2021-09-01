@@ -3,11 +3,12 @@ from pygaggle.rerank.base import Query, Reranker, hits_to_texts
 
 
 class Pipeline():
-    def __init__(self, searcher, rewriters, count, reranker=None):
+    def __init__(self, searcher, rewriters, count, reranker=None, second_stage_rewriter=None):
         self.searcher = searcher
         self.rewriters = rewriters
         self.count = count
         self.reranker = reranker
+        self.second_stage_rewriter = second_stage_rewriter
 
     def rrf(self, runs, v=60):
         docs_scores = {}
@@ -26,17 +27,17 @@ class Pipeline():
         return rrf_res
 
     def rerank(self, query, res_list):
-        #print([(x.docid,x.score) for x in res_list[:10]])
+        # print([(x.docid,x.score) for x in res_list[:10]])
         reranked = self.reranker.rerank(Query(query), hits_to_texts(res_list))
         reranked_scores = [r.score for r in reranked]
-        #print([(x.docid,y.metadata['docid']) for x,y in list(zip(res_list, reranked))[:10]])
+        # print([(x.docid,y.metadata['docid']) for x,y in list(zip(res_list, reranked))[:10]])
         # Reorder hits with reranker scores
         reranked = list(zip(res_list, reranked_scores))
         reranked.sort(key=lambda x: x[1], reverse=True)
-        reranked_hits=[]
+        reranked_hits = []
         for r in reranked:
-            doc=r[0]
-            doc.score=r[1]
+            doc = r[0]
+            doc.score = r[1]
             reranked_hits.append(doc)
         return reranked_hits
 
@@ -55,7 +56,19 @@ class Pipeline():
         print(first_stage_queries)
         for first_stage_query in first_stage_queries:
             run_res = self.searcher.search(first_stage_query, k=self.count)
-            if self.reranker:
-                run_res = self.rerank(first_stage_query, run_res)
             first_stage_lists.append(run_res)
-        return first_stage_lists[0] if len(first_stage_lists) == 1 else self.rrf(first_stage_lists)
+
+        if not self.reranker:
+            return first_stage_lists[0] if len(first_stage_lists) == 1 else self.rrf(first_stage_lists)
+
+        # use early fusion
+        if self.second_stage_rewriter:
+            early_fusion_list = self.rrf(first_stage_lists)
+            second_stage_query = self.second_stage_rewriter.rewrite(query, **ctx)
+            assert not isinstance(second_stage_query, list)
+            print("second stage query:", second_stage_query)
+            return self.rerank(second_stage_query, early_fusion_list)
+
+        reranked_lists = [self.rerank(first_stage_query, run_res) for first_stage_query, run_res in
+                          zip(first_stage_queries, first_stage_lists)]
+        return reranked_lists[0] if len(reranked_lists) == 1 else self.rrf(reranked_lists)

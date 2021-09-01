@@ -47,18 +47,3 @@ class T5Rewriter():
         # print(ntr_query, query_rewrites[0])
         # assert ntr_query == query_rewrites[0]
         return query_rewrites[0] if len(query_rewrites) == 1 else query_rewrites
-
-    def reset_history(self):
-        return
-        # self.Ntr.reset_history()
-
-
-'''
-class T5Rewriter():
-    def __init__(self):
-        self.Ntr=Ntr()
-    def rewrite(self,query,**ctx):
-        return self.Ntr.rewrite(query)
-    def reset_history(self):
-        self.Ntr.reset_history()
-'''
