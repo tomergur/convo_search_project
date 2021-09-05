@@ -17,11 +17,13 @@ TT_INPUT_PATH = 'C:/Users/tomer/Documents/Python Scripts/retrival/data/q_summary
 INPUT_PATH = 'C:/Users/tomer/Documents/Python Scripts/retrival/data/q_summary'
 BASELINE_METHODS = {'raw': '0', 'all': '1', 't5': '2'}
 BASELINE_METHODS_BASE = {k + "_base": v for k, v in BASELINE_METHODS.items()}
-SELECTED_BASELINE = BASELINE_METHODS_BASE
+SELECTED_BASELINE = BASELINE_METHODS
 
 METHOD_NAMES = ['raw', 'all', 'quretec', 't5', 't5_fuse2', 't5_fuse3', 't5_fuse4', 't5_fuse5','t5_prev','t5_prev2','t5_prev3', 'manual']
+METHOD_NAMES = ['raw', 'all', 'quretec', 't5', 'manual']
 BASE_NAMES = [x + "_base" for x in METHOD_NAMES]
-SELECTED_NAMES = BASE_NAMES
+SELECTED_NAMES = METHOD_NAMES
+
 METHOD_DISPLAY_NAMES = {'raw': 'current turn', 'all': 'all previous turns', 'quretec': 'QuReTeC', 't5': 'T5',
                         't5_fuse2': 'T5(fuse 2)', 't5_fuse3': 'T5(fuse 3)', 't5_fuse4': 'T5(fuse 4)',
                         't5_fuse5': 'T5(fuse 5)', 't5_prev': 'T5(window 1)', 't5_prev2': 'T5(window 2)',
