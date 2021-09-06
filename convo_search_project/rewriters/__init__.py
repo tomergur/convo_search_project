@@ -6,4 +6,5 @@ from .T5_rewriter import T5Rewriter
 from .quretec_rewriter import QuReTeCRewriter
 from .file_rewriter import FileRewriter
 from .Hqe_rewriter import HqeRewriter
+from .rewriters_factory import create_rewriter
 

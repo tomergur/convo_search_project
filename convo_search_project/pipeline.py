@@ -3,12 +3,12 @@ from pygaggle.rerank.base import Query, Reranker, hits_to_texts
 
 
 class Pipeline():
-    def __init__(self, searcher, rewriters, count, reranker=None, second_stage_rewriter=None, return_queries=False):
+    def __init__(self, searcher, rewriters, count, reranker=None, second_stage_rewriters=None, return_queries=False):
         self.searcher = searcher
         self.rewriters = rewriters
         self.count = count
         self.reranker = reranker
-        self.second_stage_rewriter = second_stage_rewriter
+        self.second_stage_rewriters = second_stage_rewriters
         self.return_queries = return_queries
 
     def rrf(self, runs, v=60):
@@ -64,15 +64,21 @@ class Pipeline():
             final_res_list = first_stage_lists[0] if len(first_stage_lists) == 1 else self.rrf(first_stage_lists)
             return final_res_list, queries_dict if self.return_queries else final_res_list
 
-        # use early fusion
-        if self.second_stage_rewriter:
-            early_fusion_list = self.rrf(first_stage_lists)
-            second_stage_query = self.second_stage_rewriter.rewrite(query, **ctx)
-            assert not isinstance(second_stage_query, list)
-            print("second stage query:", second_stage_query)
-            return self.rerank(second_stage_query, early_fusion_list)
-
-        reranked_lists = [self.rerank(first_stage_query, run_res) for first_stage_query, run_res in
-                          zip(first_stage_queries, first_stage_lists)]
+        if self.second_stage_rewriters:
+            # use early fusion
+            initial_list = first_stage_lists[0] if len(first_stage_lists) == 1 else self.rrf(first_stage_lists)
+            second_stage_queries = []
+            for rewriter in self.second_stage_rewriters:
+                second_stage_rewrite = rewriter.rewrite(query, **ctx)
+                if isinstance(second_stage_rewrite, list):
+                    second_stage_queries += second_stage_rewrite
+                else:
+                    second_stage_queries.append(second_stage_rewrite)
+            print("second stage query:", second_stage_queries)
+            queries_dict["second_stage_queries"] = second_stage_queries
+            reranked_lists = [self.rerank(query, initial_list) for query in second_stage_queries]
+        else:
+            reranked_lists = [self.rerank(first_stage_query, run_res) for first_stage_query, run_res in
+                              zip(first_stage_queries, first_stage_lists)]
         final_res_list = reranked_lists[0] if len(reranked_lists) == 1 else self.rrf(reranked_lists)
         return final_res_list, queries_dict if self.return_queries else final_res_list
