@@ -142,7 +142,7 @@ def run_exp(args, pipeline):
         data = json.load(json_file)
     runs = {}
     queries_dict = {}
-    for session in data[:1]:
+    for session in data:
         start_time = time.time()
         session_num = str(session["number"])
         history = []
