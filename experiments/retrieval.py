@@ -1,8 +1,10 @@
 import argparse
 import json
 import time
+import pickle
 
 from pyserini.search import SimpleSearcher
+from pyserini.dsearch import SimpleDenseSearcher,AnceQueryEncoder
 import tensorflow as tf
 
 from convo_search_project.pipeline import Pipeline
@@ -11,6 +13,7 @@ from convo_search_project.reranker import BertReranker
 from convo_search_project.mono_bert import MonoBERT
 
 from convo_search_project.rewriters import create_rewriter,HqeRewriter
+from collections import namedtuple
 
 def parse_args():
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS,
@@ -23,14 +26,22 @@ def parse_args():
                         help="number of result retrieved in the first stage retrieval")
     parser.add_argument("--log_queries", action='store_true', default=True,
                         help="log the queries to a file in the output dir ")
-    parser.add_argument('--tpu', help='name of tpu device')
+    parser.add_argument("--log_lists",action='store_true',default=False,help="log the retrieved list including the text")
 
+    parser.add_argument("--first_stage_ranker",default="bm25",help="select the first stage ranking function")
+    parser.add_argument('--tpu', help='name of tpu device')
     parser.add_argument("--use_manual_run", action='store_true', default=False,
                         help='use the manually rewritten queries')
 
     # Parameters for BM25.
     parser.add_argument('--k1', type=float, default=0.82, help='BM25 k1 parameter')
     parser.add_argument('--b', type=float, default=0.68, help='BM25 b parameter')
+
+    # parameters for cached first stage retreival
+    parser.add_argument("--first_stage_cache_file",help="the path to the first stage cache file")
+
+    #index path for dense retrieval
+    parser.add_argument("--index_path")
 
     #rewriter params
     parser.add_argument("--rewriters",nargs="+",default=[],help='list of rewriters')
@@ -68,8 +79,36 @@ def output_run_file(output_path, runs):
             for rank, doc in enumerate(run_res):
                 docno = doc.docid
                 score = doc.score
-                f.write("{}\tQ0\t{}\t{}\t{}\t{}\n".format(qid, docno, rank + 1, score, "convo"))
+                f.write("{}\tQ0\t{}\t{}\t{}\t{}\n".format(qid, docno, rank + 1, score, "convo"))\
 
+#output the intial list files as json
+
+def output_as_initial_list(output_path,runs):
+    res={}
+    for qid,run_res in runs.items():
+        q_res=[]
+        for rank,doc in enumerate(run_res,start=1):
+            doc_dict={}
+            doc_dict['docid'] = doc.docid
+            doc_dict['rank'] = rank
+            doc_dict['score'] = float(doc.score)
+            doc_dict['content'] = doc.raw
+            q_res.append(doc_dict)
+        res[qid]=q_res
+    with open(output_path, "w") as f:
+        json.dump(res, f,ensure_ascii=False, indent=True)
+
+IndexHit = namedtuple('IndexHit', 'docid score raw')
+from types import SimpleNamespace
+def load_intial_lists(path):
+    res={}
+    with open(path) as f:
+        intial_lists=json.load(f)
+    for qid,q_res in intial_lists.items():
+        #q_simple= [IndexHit(d["docid"],d["score"],d["content"]) for d in q_res]
+        q_simple = [SimpleNamespace(docid=d["docid"], score=d["score"], raw=d["content"]) for d in q_res]
+        res[qid]=q_simple
+    return res
 
 def output_queries_file(output_path, quries_dict):
     with open(output_path, "w") as f:
@@ -79,6 +118,8 @@ def output_queries_file(output_path, quries_dict):
 def build_bert_reranker(
         name_or_path: str = "castorini/monobert-large-msmarco-finetune-only", batch_size=32):
     """Returns a BERT reranker using the provided model name or path to load from"""
+    #tf.keras.backend.clear_session()
+    #tf.config.optimizer.set_jit(True)
     model = BertReranker.get_model(name_or_path, from_pt=True)
     tokenizer = BertReranker.get_tokenizer(name_or_path)
     return BertReranker(model, tokenizer, batch_size=batch_size)
@@ -94,13 +135,14 @@ def build_bert_reranker2(
 
 
 def run_exp(args, pipeline):
+    exp_start_time=time.time()
     input_queries_file = args.input_queries_file
     query_field = "manual_rewritten_utterance" if args.use_manual_run else "raw_utterance"
     with open(input_queries_file) as json_file:
         data = json.load(json_file)
     runs = {}
     queries_dict = {}
-    for session in data:
+    for session in data[:1]:
         start_time = time.time()
         session_num = str(session["number"])
         history = []
@@ -123,15 +165,19 @@ def run_exp(args, pipeline):
                 print("reset history")
                 rewriter.reset_history()
         print("session {} runtime is:{} sec".format(session_num, time.time() - start_time))
+    print("finished running expriment time is:{} min".format((time.time()-exp_start_time)/60))
     run_output_file = "{}/{}_run.txt".format(args.output_dir, args.run_name)
     output_run_file(run_output_file, runs)
+    if args.log_lists:
+        lists_output_file = "{}/{}_lists.json".format(args.output_dir, args.run_name)
+        output_as_initial_list(lists_output_file,runs)
     if args.log_queries:
-        queries_output_file = "{}/{}_queries.txt".format(args.output_dir, args.run_name)
+        queries_output_file = "{}/{}_queries.json".format(args.output_dir, args.run_name)
         output_queries_file(queries_output_file, queries_dict)
 
 
 if __name__ == "__main__":
-    # tf.debugging.set_log_device_placement(True)
+    #tf.debugging.set_log_device_placement(True)
     args = parse_args()
     print(args)
     if 'tpu' in args:
@@ -145,8 +191,18 @@ if __name__ == "__main__":
     k1 = args.k1
     b = args.b
     count = args.count
-    searcher = SimpleSearcher.from_prebuilt_index("cast2019")
-    searcher.set_bm25(k1, b)
+    initial_lists=None
+    if args.first_stage_ranker=="bm25":
+        searcher = SimpleSearcher.from_prebuilt_index("cast2019")
+        searcher.set_bm25(k1, b)
+
+    elif args.first_stage_ranker=="cache":
+        searcher = None
+        initial_lists=load_intial_lists(args.first_stage_cache_file)
+    else:
+        #INDEX_PATH="/v/tomergur/convo/indexes/cast_ance0"
+        #query_encoder=AnceQueryEncoder()
+        searcher=SimpleDenseSearcher(args.index_path,'castorini/ance-msmarco-passage')
     rewriters = []
     for rewriter_name in args.rewriters:
         rewriters.append(create_rewriter(rewriter_name,args))
@@ -157,5 +213,5 @@ if __name__ == "__main__":
             second_stage_rewriters.append(create_rewriter(rewriter_name, args))
 
     reranker = build_bert_reranker(batch_size=args.reranker_batch_size) if args.rerank else None
-    pipeline = Pipeline(searcher, rewriters, count, reranker, second_stage_rewriters, args.log_queries)
+    pipeline = Pipeline(searcher, rewriters, count, reranker, second_stage_rewriters,initial_lists, args.log_queries)
     run_exp(args, pipeline)

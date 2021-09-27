@@ -1,10 +1,7 @@
 from transformers import T5Tokenizer, TFT5ForConditionalGeneration
 
-# to remove
-from chatty_goose.cqr.ntr import Ntr
+
 from spacy.lang.en import English
-
-
 class T5Rewriter():
     def __init__(self, model_str, num_queries_generated=1, context_window=None, selected_query_rank=1, from_pt=True,
                  max_length=64, num_beams=10, sliding_window_fusion=False,
@@ -43,16 +40,14 @@ class T5Rewriter():
         src_text = " ||| ".join(history + [query])
         src_text = " ".join([tok.text for tok in self.eng(src_text)])
         input_ids = self.tokenizer(
-            src_text, return_tensors="tf", add_special_tokens=True
-        )
+            src_text, return_tensors="tf", add_special_tokens=True)
         selected_query_offset = self.selected_query_rank - 1
         output_ids = self.model.generate(
             input_ids['input_ids'],
             max_length=self.max_length,
             num_beams=self.num_beams,
             early_stopping=self.early_stopping,
-            num_return_sequences=num_queries_generated + selected_query_offset
-        )
+            num_return_sequences=num_queries_generated + selected_query_offset)
         # Decode output
         query_rewrites = []
         for i in range(selected_query_offset, num_queries_generated + selected_query_offset):

@@ -4,6 +4,6 @@ class HqeRewriter():
         self.hqe=Hqe(searcher)
 
     def rewrite(self,query,**ctx):
-        return self.rewrite(query)
+        return self.hqe.rewrite(query)
     def reset_history(self):
         self.hqe.reset_history()
