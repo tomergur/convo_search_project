@@ -16,7 +16,12 @@ class BertReranker(Reranker):
         self.model = model or self.get_model()
         self.tokenizer = tokenizer or self.get_tokenizer()
         self.batch_size = batch_size
-        self.keras_model = self.create_keras_model()
+        if strategy:
+            with strategy.scope():
+                keras_model=self.create_keras_model()
+        else:
+            keras_model = self.create_keras_model()
+        self.keras_model = keras_model
         logs_dir = "./data/logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.tboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logs_dir,
                                                               histogram_freq=1,
@@ -78,8 +83,8 @@ class BertReranker(Reranker):
                                            "token_type": ret['token_type_ids']}, batch_size=self.batch_size, verbose=1,
                                           callbacks=self.tboard_callback)
         '''
-        with self.strategy.scope():
-            scores = self.keras_model.predict(pairs_ds,batch_size=self.batch_size, verbose=1)
+
+        scores = self.keras_model.predict(pairs_ds,batch_size=self.batch_size, verbose=1)
         # ,workers=2,use_multiprocessing=True
         print("batch infer time:", time.perf_counter() - rerank_time)
         # scores = scores.numpy()
