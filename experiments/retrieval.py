@@ -65,7 +65,7 @@ def parse_args():
     # parameters for reranker
     parser.add_argument('--rerank', action='store_true', default=False, help='rerank BM25 output using BERT')
     parser.add_argument('--reranker_batch_size', type=int, default=32, help='reranker batch size for inference')
-    # parser.add_argument('--reranker_device', default='cuda', help='reranker device to use')
+    parser.add_argument('--reranker_device', help='reranker device to use')
 
     # Return args
     args = parser.parse_args()
@@ -116,18 +116,18 @@ def output_queries_file(output_path, quries_dict):
 
 
 def build_bert_reranker(
-        name_or_path: str = "castorini/monobert-large-msmarco-finetune-only", batch_size=32):
+        name_or_path: str = "castorini/monobert-large-msmarco-finetune-only", batch_size=32,device=None):
     """Returns a BERT reranker using the provided model name or path to load from"""
     #tf.keras.backend.clear_session()
     #tf.config.optimizer.set_jit(True)
     model = BertReranker.get_model(name_or_path, from_pt=True)
     tokenizer = BertReranker.get_tokenizer(name_or_path)
-    return BertReranker(model, tokenizer, batch_size=batch_size)
+    return BertReranker(model, tokenizer, batch_size=batch_size,device=device)
 
 
 def build_bert_reranker2(
         name_or_path: str = "castorini/monobert-large-msmarco-finetune-only",
-        batch_size:int =32,device: str = 'cuda'):
+        batch_size:int =32,device: str = None):
     """Returns a BERT reranker using the provided model name or path to load from"""
     model = MonoBERT.get_model(name_or_path, device=device)
     tokenizer = MonoBERT.get_tokenizer(name_or_path)
@@ -211,7 +211,9 @@ if __name__ == "__main__":
         second_stage_rewriters=[]
         for rewriter_name in args.second_stage_rewriters:
             second_stage_rewriters.append(create_rewriter(rewriter_name, args))
-
-    reranker = build_bert_reranker(batch_size=args.reranker_batch_size) if args.rerank else None
+    device=args.reranker_device if 'reranker_device' in args else None
+    if args.tpu:
+        device="/TPU:0"
+    reranker = build_bert_reranker(batch_size=args.reranker_batch_size,device=device) if args.rerank else None
     pipeline = Pipeline(searcher, rewriters, count, reranker, second_stage_rewriters,initial_lists, args.log_queries)
     run_exp(args, pipeline)
