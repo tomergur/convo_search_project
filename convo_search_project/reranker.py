@@ -64,21 +64,22 @@ class BertReranker(Reranker):
         ret = self.tokenizer([query.text] * len(texts),
                              [text.text for text in texts], max_length=512,
                              truncation=True, padding="max_length", return_token_type_ids=True, return_tensors='tf')
-        input_ids = tf.data.Dataset.from_tensor_slices(ret['input_ids'])
-        tt_ids = tf.data.Dataset.from_tensor_slices(ret['token_type_ids'])
-        att_mask = tf.data.Dataset.from_tensor_slices(ret['attention_mask'])
+        #input_ids = tf.data.Dataset.from_tensor_slices(ret['input_ids'])
+        #tt_ids = tf.data.Dataset.from_tensor_slices(ret['token_type_ids'])
+        #att_mask = tf.data.Dataset.from_tensor_slices(ret['attention_mask'])
         # pairs_ds=tf.data.Dataset.zip((input_ids,att_mask, tt_ids))
         pairs_ds=tf.data.Dataset.from_tensor_slices({"input_token": ret['input_ids'], "masked_token": ret['attention_mask'],
                                            "token_type": ret['token_type_ids']})
         rerank_time = time.perf_counter()
         print("data prepare time:", rerank_time - data_prerpare_time)
+        print("input shape:",ret['input_ids'].shape)
         '''
         scores = self.keras_model.predict({"input_token": ret['input_ids'], "masked_token": ret['attention_mask'],
                                            "token_type": ret['token_type_ids']}, batch_size=self.batch_size, verbose=1,
                                           callbacks=self.tboard_callback)
         '''
         with self.strategy.scope():
-            scores = self.keras_model.predict(pairs_ds, verbose=1)
+            scores = self.keras_model.predict(pairs_ds,batch_size=self.batch_size, verbose=1)
         # ,workers=2,use_multiprocessing=True
         print("batch infer time:", time.perf_counter() - rerank_time)
         # scores = scores.numpy()
