@@ -116,13 +116,13 @@ def output_queries_file(output_path, quries_dict):
 
 
 def build_bert_reranker(
-        name_or_path: str = "castorini/monobert-large-msmarco-finetune-only", batch_size=32,device=None):
+        name_or_path: str = "castorini/monobert-large-msmarco-finetune-only", batch_size=32,device=None,strategy=None):
     """Returns a BERT reranker using the provided model name or path to load from"""
     #tf.keras.backend.clear_session()
     #tf.config.optimizer.set_jit(True)
     model = BertReranker.get_model(name_or_path, from_pt=True)
     tokenizer = BertReranker.get_tokenizer(name_or_path)
-    return BertReranker(model, tokenizer, batch_size=batch_size,device=device)
+    return BertReranker(model, tokenizer, batch_size=batch_size,device=device,strategy=strategy)
 
 
 def build_bert_reranker2(
@@ -180,12 +180,16 @@ if __name__ == "__main__":
     #tf.debugging.set_log_device_placement(True)
     args = parse_args()
     print(args)
+    strategy=None
     if 'tpu' in args:
         resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=args.tpu)
         tf.config.experimental_connect_to_cluster(resolver)
         tf.tpu.experimental.initialize_tpu_system(resolver)
         print("All devices: ", tf.config.list_logical_devices('TPU'))
+        strategy = tf.distribute.experimental.TPUStrategy(resolver)
     args_output_path = "{}/{}_config.json".format(args.output_dir, args.run_name)
+
+
     with open(args_output_path, 'w') as f:
         json.dump(vars(args), f, indent=True)
     k1 = args.k1
@@ -212,8 +216,8 @@ if __name__ == "__main__":
         for rewriter_name in args.second_stage_rewriters:
             second_stage_rewriters.append(create_rewriter(rewriter_name, args))
     device=args.reranker_device if 'reranker_device' in args else None
-    if args.tpu:
+    if 'tpu' in args:
         device="/TPU:0"
-    reranker = build_bert_reranker(batch_size=args.reranker_batch_size,device=device) if args.rerank else None
+    reranker = build_bert_reranker(batch_size=args.reranker_batch_size,device=device,strategy=strategy) if args.rerank else None
     pipeline = Pipeline(searcher, rewriters, count, reranker, second_stage_rewriters,initial_lists, args.log_queries)
     run_exp(args, pipeline)

@@ -11,6 +11,7 @@ class BertReranker(Reranker):
                  model: TFPreTrainedModel = None,
                  tokenizer: PreTrainedTokenizer = None,
                  device: str =None,
+                 strategy=None,
                  batch_size=32):
         self.model = model or self.get_model()
         self.tokenizer = tokenizer or self.get_tokenizer()
@@ -21,6 +22,7 @@ class BertReranker(Reranker):
                                                               histogram_freq=1,
                                                               profile_batch='2,4')
         self.device = device
+        self.strategy=strategy
 
     def create_keras_model(self):
         input_ids = tf.keras.layers.Input(shape=(512,), name='input_token', dtype='int32')
@@ -44,7 +46,7 @@ class BertReranker(Reranker):
                       *args, **kwargs) -> AutoTokenizer:
         return AutoTokenizer.from_pretrained(pretrained_model_name_or_path, use_fast=False, *args, **kwargs)
 
-    def rerank_keras(self, query: Query, texts: List[Text]) -> List[Text]:
+    def _rerank_keras(self, query: Query, texts: List[Text]) -> List[Text]:
         # print(tf.config.list_physical_devices('GPU'))
         data_prerpare_time = time.perf_counter()
         texts = deepcopy(texts)
@@ -75,7 +77,8 @@ class BertReranker(Reranker):
                                            "token_type": ret['token_type_ids']}, batch_size=self.batch_size, verbose=1,
                                           callbacks=self.tboard_callback)
         '''
-        scores = self.keras_model.predict(pairs_ds, verbose=1)
+        with self.strategy.scope():
+            scores = self.keras_model.predict(pairs_ds, verbose=1)
         # ,workers=2,use_multiprocessing=True
         print("batch infer time:", time.perf_counter() - rerank_time)
         # scores = scores.numpy()
@@ -115,6 +118,9 @@ class BertReranker(Reranker):
         return texts
 
     def rerank(self, query: Query, texts: List[Text]) -> List[Text]:
+        if self.strategy:
+            print("run strategy")
+            return self._rerank_keras(query,texts)
         if self.device:
             with tf.device(self.device):
                 return self._rerank(query,texts)
