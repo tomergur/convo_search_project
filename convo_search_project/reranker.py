@@ -87,7 +87,6 @@ class BertReranker(Reranker):
         scores = self.keras_model.predict(pairs_ds.batch(self.batch_size),batch_size=self.batch_size, verbose=1)
         # ,workers=2,use_multiprocessing=True
         print("batch infer time:", time.perf_counter() - rerank_time)
-        scores = scores.numpy()
         for i, text in enumerate(texts):
             text.score = scores[i, -1]
         print("total rerank time:{} sec".format(time.perf_counter() - data_prerpare_time))
@@ -116,6 +115,7 @@ class BertReranker(Reranker):
             scores = tf.nn.log_softmax(output)
             infer_ttime += time.perf_counter() - infer_time
             #print("batch infer time:", infer_ttime)
+            #scores = scores.numpy()
             for i, text in enumerate(batch_texts):
                 text.score = scores[i, -1]
         print("batch infer time:", infer_ttime)
