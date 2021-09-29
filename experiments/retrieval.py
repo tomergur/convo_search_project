@@ -187,6 +187,19 @@ if __name__ == "__main__":
         tf.tpu.experimental.initialize_tpu_system(resolver)
         print("All devices: ", tf.config.list_logical_devices('TPU'))
         strategy = tf.distribute.experimental.TPUStrategy(resolver)
+    else:
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        if gpus:
+            try:
+                # Currently, memory growth needs to be the same across GPUs
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+                print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+            except RuntimeError as e:
+                # Memory growth must be set before GPUs have been initialized
+                print(e)
+
     args_output_path = "{}/{}_config.json".format(args.output_dir, args.run_name)
 
 
@@ -216,8 +229,6 @@ if __name__ == "__main__":
         for rewriter_name in args.second_stage_rewriters:
             second_stage_rewriters.append(create_rewriter(rewriter_name, args))
     device=args.reranker_device if 'reranker_device' in args else None
-    if 'tpu' in args:
-        device="/TPU:0"
     reranker = build_bert_reranker(batch_size=args.reranker_batch_size,device=device,strategy=strategy) if args.rerank else None
     pipeline = Pipeline(searcher, rewriters, count, reranker, second_stage_rewriters,initial_lists, args.log_queries)
     run_exp(args, pipeline)

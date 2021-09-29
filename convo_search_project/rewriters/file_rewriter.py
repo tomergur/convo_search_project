@@ -10,7 +10,7 @@ class FileRewriter():
     def _load_json_rewrites(self, queries_rewrites_path):
         with open(queries_rewrites_path) as f:
             rewrites = json.load(f)
-            rewrites = {qid: v["first_stage_rewrites"] for qid, v in rewrites.keys()}
+            rewrites = {qid: v["first_stage_rewrites"] for qid, v in rewrites.items()}
         return rewrites
 
     def __init__(self, queries_rewrites_path):

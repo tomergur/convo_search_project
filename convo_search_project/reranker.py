@@ -84,10 +84,10 @@ class BertReranker(Reranker):
                                           callbacks=self.tboard_callback)
         '''
 
-        scores = self.keras_model.predict(pairs_ds,batch_size=self.batch_size, verbose=1)
+        scores = self.keras_model.predict(pairs_ds.batch(self.batch_size),batch_size=self.batch_size, verbose=1)
         # ,workers=2,use_multiprocessing=True
         print("batch infer time:", time.perf_counter() - rerank_time)
-        # scores = scores.numpy()
+        scores = scores.numpy()
         for i, text in enumerate(texts):
             text.score = scores[i, -1]
         print("total rerank time:{} sec".format(time.perf_counter() - data_prerpare_time))
@@ -125,7 +125,6 @@ class BertReranker(Reranker):
 
     def rerank(self, query: Query, texts: List[Text]) -> List[Text]:
         if self.strategy:
-            print("run strategy")
             return self._rerank_keras(query,texts)
         if self.device:
             with tf.device(self.device):
