@@ -116,7 +116,6 @@ class BertReranker(Reranker):
             scores = tf.nn.log_softmax(output)
             infer_ttime += time.perf_counter() - infer_time
             #print("batch infer time:", infer_ttime)
-            scores = scores.numpy()
             for i, text in enumerate(batch_texts):
                 text.score = scores[i, -1]
         print("batch infer time:", infer_ttime)
