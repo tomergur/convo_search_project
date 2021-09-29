@@ -84,7 +84,7 @@ class BertReranker(Reranker):
                                           callbacks=self.tboard_callback)
         '''
 
-        scores = self.keras_model.predict(pairs_ds.batch(self.batch_size),batch_size=self.batch_size, verbose=1)
+        scores = self.keras_model.predict(pairs_ds.batch(self.batch_size),batch_size=self.batch_size, verbose=0)
         # ,workers=2,use_multiprocessing=True
         print("batch infer time:", time.perf_counter() - rerank_time)
         for i, text in enumerate(texts):

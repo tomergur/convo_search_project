@@ -186,7 +186,7 @@ if __name__ == "__main__":
         tf.config.experimental_connect_to_cluster(resolver)
         tf.tpu.experimental.initialize_tpu_system(resolver)
         print("All devices: ", tf.config.list_logical_devices('TPU'))
-        strategy = tf.distribute.experimental.TPUStrategy(resolver)
+        strategy = tf.distribute.TPUStrategy(resolver)
     else:
         gpus = tf.config.experimental.list_physical_devices('GPU')
         if gpus:
