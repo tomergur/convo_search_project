@@ -1,5 +1,10 @@
 class PrevUtteranceRewriter():
-    def rewrite(self,query,**ctx):
+    def __init__(self, k=1):
+        self.k = k
+
+    def rewrite(self, query, **ctx):
         if len(ctx['history']) == 0:
             return query
-        return query+" "+ctx['history'][-1]
+        if 'canonical_rsp' in ctx and ctx['canonical_rsp'] is not None:
+            return " ".join(ctx['history'][-self.k:]+[ctx['canonical_rsp'][-1],query])
+        return  " ".join(ctx['history'][-self.k:]+[query])

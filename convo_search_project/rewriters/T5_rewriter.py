@@ -28,6 +28,8 @@ class T5Rewriter():
             print("history:", history)
         else:
             history = ctx['history']
+        if 'canonical_rsp' in ctx:
+            history=history+[ctx["canonical_rsp"][-1]]
         return self._generate_queries(history, query, self.num_queries_generated)
 
     def _sliding_history_rewrite(self, history, query):

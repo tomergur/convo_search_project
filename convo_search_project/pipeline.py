@@ -46,7 +46,8 @@ class Pipeline():
 
     def retrieve(self, query, **ctx):
         if self.cached_lists:
-            first_stage_lists=[self.cached_lists[ctx['qid']]]
+            qid=ctx['qid']
+            first_stage_lists=[self.cached_lists[qid][:self.count]]
             first_stage_queries=[query]
             queries_dict = {"query": query}
         else:
