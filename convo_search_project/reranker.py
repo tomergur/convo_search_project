@@ -49,7 +49,7 @@ class BertReranker(Reranker):
     @staticmethod
     def get_tokenizer(pretrained_model_name_or_path: str = 'bert-large-uncased',
                       *args, **kwargs) -> AutoTokenizer:
-        return AutoTokenizer.from_pretrained(pretrained_model_name_or_path, use_fast=False, *args, **kwargs)
+        return AutoTokenizer.from_pretrained(pretrained_model_name_or_path, use_fast=True, *args, **kwargs)
 
     def _rerank_keras(self, query: Query, texts: List[Text]) -> List[Text]:
         # print(tf.config.list_physical_devices('GPU'))
