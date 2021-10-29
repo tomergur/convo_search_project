@@ -28,7 +28,7 @@ class T5Rewriter():
             print("history:", history)
         else:
             history = ctx['history']
-        if 'canonical_rsp' in ctx:
+        if 'canonical_rsp' in ctx and ctx['canonical_rsp'] is not None:
             history=history+[ctx["canonical_rsp"][-1]]
         return self._generate_queries(history, query, self.num_queries_generated)
 
