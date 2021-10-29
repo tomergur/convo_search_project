@@ -57,18 +57,18 @@ def generate_queries(src_texts,tokenizer,model):
 def main(args):
     col = args.collection
     method = args.method
-    LISTS_PATH = "/lv_local/home/tomergur/convo_search_project/data/res/{}_{}_lists.json".format(col, method)
-    OUTPUT_PATH = "/lv_local/home/tomergur/convo_search_project/data/res/{}_{}_doc2q.json".format(col, method)
+    LISTS_PATH = "./data/res/{}_{}_lists.json".format(col, method)
+    OUTPUT_PATH = "./data/res/{}_{}_doc2q.json".format(col, method)
     res = {}
     tokenizer = T5Tokenizer.from_pretrained(model_name, use_fast=True)
     model = TFT5ForConditionalGeneration.from_pretrained(model_name, from_pt=True)
     with open(LISTS_PATH) as f:
         res_lists = json.load(f)
-    for qid, res_list in list(res_lists.items())[:2]:
+    for qid, res_list in list(res_lists.items()):
         print(qid)
         q_res = {}
-        # len(res_list)
-        for idx in tqdm.tqdm(range(0, 16, args.batch_size)):
+        #
+        for idx in tqdm.tqdm(range(0, len(res_list), args.batch_size)):
             batch_list = res_list[idx:idx + args.batch_size]
             doc_q = generate_queries([doc['content'] for doc in batch_list], tokenizer, model)
             for doc, q in zip(batch_list, doc_q):
