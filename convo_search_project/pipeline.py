@@ -5,7 +5,7 @@ import tensorflow as tf
 
 
 class Pipeline():
-    def __init__(self, searcher, rewriters, count, reranker=None, second_stage_rewriters=None,inital_lists=None, return_queries=False):
+    def __init__(self, searcher, rewriters, count, reranker=None, second_stage_rewriters=None,inital_lists=None, return_queries=False,hits_to_texts_func=None):
         self.searcher = searcher
         self.rewriters = rewriters
         self.count = count
@@ -13,6 +13,7 @@ class Pipeline():
         self.second_stage_rewriters = second_stage_rewriters
         self.return_queries = return_queries
         self.cached_lists=inital_lists
+        self.hits_to_texts=hits_to_texts_func if hits_to_texts_func is not None else hits_to_texts
         assert (len(rewriters)==0 or inital_lists is None)
 
     def rrf(self, runs, v=60):
@@ -32,7 +33,7 @@ class Pipeline():
         return rrf_res
 
     def rerank(self, query, res_list):
-        reranked = self.reranker.rerank(Query(query), hits_to_texts(res_list))
+        reranked = self.reranker.rerank(Query(query), self.hits_to_texts(res_list))
         reranked_scores = [r.score for r in reranked]
         # Reorder hits with reranker scores
         reranked = list(zip(res_list, reranked_scores))

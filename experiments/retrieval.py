@@ -9,6 +9,8 @@ import tensorflow as tf
 from convo_search_project.pipeline import Pipeline
 from convo_search_project.rerankers import BertReranker
 from convo_search_project.rerankers import Bm25Reranker
+
+from convo_search_project.doc_modify import modify_to_all_queries,modify_to_single_queries
 # TODO: delete
 from convo_search_project.mono_bert import MonoBERT
 
@@ -75,6 +77,10 @@ def parse_args():
     parser.add_argument('--reranker_batch_size', type=int, default=32, help='reranker batch size for inference')
     parser.add_argument('--reranker_type', default='bert', help='selet the reranker type')
     parser.add_argument('--reranker_device', help='reranker device to use')
+
+    #doc modfier
+    parser.add_argument("--modify_documents_func")
+    parser.add_argument("--doc2q_path")
 
     # Return args
     args = parser.parse_args()
@@ -270,5 +276,12 @@ if __name__ == "__main__":
     device = args.reranker_device if 'reranker_device' in args else None
     reranker = build_reranker(args, device=device,
                               strategy=strategy) if args.rerank else None
-    pipeline = Pipeline(searcher, rewriters, count, reranker, second_stage_rewriters, initial_lists, args.log_queries)
+    hits_to_text_func=None
+    if 'modify_documents_func' in args:
+        if args.modify_documents_func=="doc2q_all":
+            with open(args.doc2q_path) as f:
+                doc2q=json.load(f)
+            hits_to_text_func=lambda hits:modify_to_all_queries(doc2q,hits)
+
+    pipeline = Pipeline(searcher, rewriters, count, reranker, second_stage_rewriters, initial_lists, args.log_queries,hits_to_text_func)
     run_exp(args, pipeline, doc_fetcher)
