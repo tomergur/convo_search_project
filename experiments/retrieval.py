@@ -282,10 +282,10 @@ if __name__ == "__main__":
             with open(args.doc2q_path) as f:
                 doc2q=json.load(f)
             hits_to_text_func=lambda hits:modify_to_all_queries(doc2q,hits)
-    elif args.modify_documents_func=="doc2q_app_all":
-        with open(args.doc2q_path) as f:
-            doc2q = json.load(f)
-        hits_to_text_func = lambda hits: modify_to_append_all_queries(doc2q, hits)
+        elif args.modify_documents_func=="doc2q_app_all":
+            with open(args.doc2q_path) as f:
+                doc2q = json.load(f)
+                hits_to_text_func = lambda hits: modify_to_append_all_queries(doc2q, hits)
 
     pipeline = Pipeline(searcher, rewriters, count, reranker, second_stage_rewriters, initial_lists, args.log_queries,hits_to_text_func)
     run_exp(args, pipeline, doc_fetcher)
