@@ -6,7 +6,7 @@ COL='2019'
 METHOD='prev_first_turn_base'
 model_name="castorini/doc2query-t5-base-msmarco"
 from transformers import T5Tokenizer,TFT5ForConditionalGeneration
-NUM_RETURNED_QUERIES=20
+NUM_RETURNED_QUERIES=5
 
 '''
 def generate_queries(src_text,tokenizer,model):
@@ -31,7 +31,7 @@ def generate_queries(src_text,tokenizer,model):
 
 def generate_queries(src_texts,tokenizer,model):
     input_ids = tokenizer(
-        src_texts,max_length=512, padding="max_length",truncation=True, return_tensors="tf", add_special_tokens=True)
+        src_texts,max_length=512, padding=True,truncation=True, return_tensors="tf", add_special_tokens=True)
 
 
     output_ids = model.generate(input_ids['input_ids'],attention_mask=input_ids['attention_mask'],
@@ -58,32 +58,37 @@ def main(args):
     col = args.collection
     method = args.method
     LISTS_PATH = "./data/res/{}_{}_lists.json".format(col, method)
-    OUTPUT_PATH = "./data/res/{}_{}_doc2q.json".format(col, method)
+    OUTPUT_PATH = "./data/res/{}_{}_doc2q_example.json".format(col, method)
     res = {}
     tokenizer = T5Tokenizer.from_pretrained(model_name, use_fast=True)
     model = TFT5ForConditionalGeneration.from_pretrained(model_name, from_pt=True)
     with open(LISTS_PATH) as f:
         res_lists = json.load(f)
-    for qid, res_list in list(res_lists.items()):
-        print(qid)
-        q_res = {}
-        #
-        for idx in tqdm.tqdm(range(0, len(res_list), args.batch_size)):
-            batch_list = res_list[idx:idx + args.batch_size]
-            doc_q = generate_queries([doc['content'] for doc in batch_list], tokenizer, model)
-            for doc, q in zip(batch_list, doc_q):
-                q_res[doc['docid']] = q
-        res[qid] = q_res
+
+    doc_map={}
+    for qid,res_list in res_lists.items():
+        for doc in res_list:
+            doc_map[doc['docid']]=doc['content']
+
+    res_list=list(doc_map.items())
+    for idx in tqdm.tqdm(range(0, len(res_list), args.batch_size)):
+        batch_list = res_list[idx:idx + args.batch_size]
+        doc_q = generate_queries([doc[1] for doc in batch_list], tokenizer, model)
+        for doc, q in zip(batch_list, doc_q):
+            #res[doc[0]]={"passage":doc[1],"queries":q}
+            res[doc[0]] = q
+
     with open(OUTPUT_PATH, 'w') as f:
         json.dump(res, f, ensure_ascii=False, indent=True)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size",type=int,default=8)
+    parser.add_argument("--batch_size",type=int,default=64)
     parser.add_argument("--collection",default="2019")
     parser.add_argument("--method",default="prev_first_turn_base")
     parser.add_argument("--tpu",default=None)
+    parser.add_argument("--gpu",default=None)
     args=parser.parse_args()
     if args.tpu is not None:
         resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=args.tpu)
@@ -94,6 +99,26 @@ if __name__ == "__main__":
         with strategy.scope():
             main(args)
     else:
-        main(args)
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        if gpus:
+            try:
+                # Currently, memory growth needs to be the same across GPUs
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+                print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+            except RuntimeError as e:
+                # Memory growth must be set before GPUs have been initialized
+                print(e)
+        if args.gpu is not None:
+            with tf.device(args.gpu):
+                main(args)
+        else:
+            main(args)
+        '''
+        strategy = tf.distribute.MirroredStrategy()
+        with strategy.scope():
+            main(args)
+        '''
 
 

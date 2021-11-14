@@ -8,6 +8,9 @@ cs_venv/
 # 
 data/quretec 
 data/res
+data/eval
+data/ltr 
+data/datasets
 # Byte-compiled / optimized / DLL files
 __pycache__/
 

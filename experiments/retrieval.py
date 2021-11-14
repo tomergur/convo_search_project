@@ -7,8 +7,8 @@ from pyserini.dsearch import SimpleDenseSearcher
 import tensorflow as tf
 
 from convo_search_project.pipeline import Pipeline
-from convo_search_project.rerankers import BertReranker
-from convo_search_project.rerankers import Bm25Reranker
+from convo_search_project.rerankers import BertReranker,Bm25Reranker
+from convo_search_project.rerankers import JaacardReranker
 
 from convo_search_project.doc_modify import modify_to_all_queries,modify_to_single_queries,modify_to_append_all_queries
 # TODO: delete
@@ -82,6 +82,9 @@ def parse_args():
     parser.add_argument("--modify_documents_func")
     parser.add_argument("--doc2q_path")
 
+    #jaccard
+    parser.add_argument('--jaccard_use_max',action='store_true')
+
     # Return args
     args = parser.parse_args()
     return args
@@ -149,8 +152,9 @@ def build_reranker(
         searcher=SimpleSearcher.from_prebuilt_index("cast2019")
         searcher.set_bm25(args.k1,args.b)
         index_reader=IndexReader.from_prebuilt_index("cast2019")
-        #return Bm25Reranker(args.k1, args.b,INDEX_PATH)
         return Bm25Reranker(index_reader,searcher.get_similarity())
+    elif args.reranker_type=="jaccard":
+        return JaacardReranker('jaccard_use_max' in args)
     model = BertReranker.get_model(name_or_path, from_pt=True)
     tokenizer = BertReranker.get_tokenizer(name_or_path)
     return BertReranker(model, tokenizer, batch_size=args.reranker_batch_size, device=device, strategy=strategy)
