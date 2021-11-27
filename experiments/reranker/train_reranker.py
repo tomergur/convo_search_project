@@ -17,9 +17,9 @@ class SavePretrainedCallback(tf.keras.callbacks.Callback):
 
 
 FEATURE_DESC = {
-    'input_ids': tf.io.FixedLenSequenceFeature([512], tf.int64, allow_missing=True),
-    'attention_mask': tf.io.FixedLenSequenceFeature([512], tf.int64, allow_missing=True),
-    'token_type_ids': tf.io.FixedLenSequenceFeature([512], tf.int64, allow_missing=True),
+    'input_ids': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
+    'attention_mask': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
+    'token_type_ids': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
     'labels': tf.io.FixedLenFeature([], tf.int64)
 }
 
@@ -42,10 +42,8 @@ if __name__ == "__main__":
     model_name = "castorini/monobert-large-msmarco-finetune-only"
     # model_name="bert-base-uncased"
     # put here dataset
-    raw_test_data = tf.data.TFRecordDataset(data_args.test_file)
+    raw_test_data = tf.data.TFRecordDataset(data_args.test_file, num_parallel_reads=tf.data.AUTOTUNE)
     test_dataset = raw_test_data.map(_parse_function)
-    for t in test_dataset.take(10):
-        print(t)
     with training_args.strategy.scope():
         raw_train_data = tf.data.TFRecordDataset(data_args.train_file)
         parsed_train_dataset = raw_train_data.map(_parse_function)

@@ -9,6 +9,7 @@ import tensorflow as tf
 from convo_search_project.pipeline import Pipeline
 from convo_search_project.rerankers import BertReranker,Bm25Reranker
 from convo_search_project.rerankers import JaacardReranker
+from convo_search_project.datasets import CastSessionRunner,ORQuacSessionRunner
 
 from convo_search_project.doc_modify import modify_to_all_queries,modify_to_single_queries,modify_to_append_all_queries
 # TODO: delete
@@ -23,6 +24,7 @@ def parse_args():
                                      description='running retrieval pipeline for our convo search project')
     parser.add_argument('--run_name', required=True,
                         help='the name of the current run. will be the name of the output files')
+    parser.add_argument('--collection_type',default="cast")
     parser.add_argument('--input_queries_file', required=True, help='input queries file')
     parser.add_argument('--output_dir', required=True, help='output dir for the run')
     parser.add_argument('--count', type=int, default=1000,
@@ -123,6 +125,7 @@ def output_as_initial_list(output_path, runs, doc_searcher):
         json.dump(res, f, ensure_ascii=False, indent=True)
 
 
+#TODO: remove index hit
 IndexHit = namedtuple('IndexHit', 'docid score raw')
 from types import SimpleNamespace
 
@@ -137,28 +140,28 @@ def load_intial_lists(path):
         res[qid] = q_simple
     return res
 
-
 def output_queries_file(output_path, quries_dict):
     with open(output_path, "w") as f:
         json.dump(quries_dict, f, indent=True)
-
 
 def build_reranker(
         args, name_or_path: str = "castorini/monobert-large-msmarco-finetune-only", device=None, strategy=None):
     """Returns a  reranker using the provided model name or path to load from"""
     if args.reranker_type == "bm25":
-        #TODO: remove constant path
+        #TODO: remove constant path and maybe adapt to or_quac
         INDEX_PATH="/lv_local/home/tomergur/.cache/pyserini/indexes/index-cast2019.36e604d7f5a4e08ade54e446be2f6345/"
-        searcher=SimpleSearcher.from_prebuilt_index("cast2019")
+        searcher=collection_type_to_searcher(args.collection_type)
         searcher.set_bm25(args.k1,args.b)
-        index_reader=IndexReader.from_prebuilt_index("cast2019")
+        if args.collection_type=="cast":
+            index_reader=IndexReader.from_prebuilt_index("cast2019")
+        else:
+            index_reader=None
         return Bm25Reranker(index_reader,searcher.get_similarity())
     elif args.reranker_type=="jaccard":
         return JaacardReranker('jaccard_use_max' in args)
     model = BertReranker.get_model(name_or_path, from_pt=True)
     tokenizer = BertReranker.get_tokenizer(name_or_path)
     return BertReranker(model, tokenizer, batch_size=args.reranker_batch_size, device=device, strategy=strategy)
-
 
 def build_bert_reranker2(
         name_or_path: str = "castorini/monobert-large-msmarco-finetune-only",
@@ -169,54 +172,26 @@ def build_bert_reranker2(
     return MonoBERT(model, tokenizer, batch_size)
 
 
-def run_exp(args, pipeline, doc_fetcher):
+def run_exp(args, session_runner):
     exp_start_time = time.time()
-    input_queries_file = args.input_queries_file
-    query_field = "manual_rewritten_utterance" if args.use_manual_run else "raw_utterance"
-    with open(input_queries_file) as json_file:
-        data = json.load(json_file)
-    runs = {}
-    queries_dict = {}
-    for session in data:
-        start_time = time.time()
-        session_num = str(session["number"])
-        history = []
-        canonical_response = [] if doc_fetcher else None
-        for turn_id, conversations in enumerate(session["turn"]):
-            query_start_time = time.time()
-            query = conversations[query_field]
-            conversation_num = str(conversations["number"])
-            qid = session_num + "_" + conversation_num
-            print(qid, query)
-            if args.log_queries:
-                run_res, query_dict = pipeline.retrieve(query, history=history, canonical_rsp=canonical_response,
-                                                        qid=qid)
-                queries_dict[qid] = query_dict
-            else:
-                run_res = pipeline.retrieve(query, history=history, canonical_rsp=canonical_response, qid=qid)
-            history.append(query)
-            if doc_fetcher:
-                rsp_doc = doc_fetcher.doc(conversations["manual_canonical_result_id"])
-                canonical_response.append(rsp_doc.raw())
-            runs[qid] = run_res
-            print("query {} runtime is:{} sec".format(qid, time.time() - query_start_time))
-        for rewriter in rewriters:
-            if isinstance(rewriter, HqeRewriter):
-                print("reset history")
-                rewriter.reset_history()
-        print("session {} runtime is:{} sec".format(session_num, time.time() - start_time))
+    queries_dict, runs = session_runner.run_sessions(args)
     print("finished running expriment time is:{} min".format((time.time() - exp_start_time) / 60))
     run_output_file = "{}/{}_run.txt".format(args.output_dir, args.run_name)
     output_run_file(run_output_file, runs)
     if args.log_lists:
         lists_output_file = "{}/{}_lists.json".format(args.output_dir, args.run_name)
-        doc_searcher = SimpleSearcher.from_prebuilt_index("cast2019") if args.first_stage_ranker in ["ance",
+        doc_searcher = collection_type_to_searcher(args.collection_type) if args.first_stage_ranker in ["ance",
                                                                                                      "tct"] else None
         output_as_initial_list(lists_output_file, runs, doc_searcher)
     if args.log_queries:
         queries_output_file = "{}/{}_queries.json".format(args.output_dir, args.run_name)
         output_queries_file(queries_output_file, queries_dict)
 
+def collection_type_to_searcher(collection_type):
+    if collection_type=="cast":
+        return SimpleSearcher.from_prebuilt_index("cast2019")
+    #TODO: remove or_quac constant location
+    return SimpleSearcher("/v/tomergur/convo/indexes/or_quac")
 
 if __name__ == "__main__":
     # tf.debugging.set_log_device_placement(True)
@@ -251,22 +226,25 @@ if __name__ == "__main__":
     count = args.count
     initial_lists = None
     if args.first_stage_ranker == "bm25":
-        searcher = SimpleSearcher.from_prebuilt_index("cast2019")
+        searcher = collection_type_to_searcher(args.collection_type)
         searcher.set_bm25(k1, b)
     elif args.first_stage_ranker == "cache":
         searcher = None
         initial_lists = load_intial_lists(args.first_stage_cache_file)
+
+    #TODO: remove dense retrieval
+    '''
     elif args.first_stage_ranker == "ance":
         searcher = SimpleDenseSearcher(args.index_path, 'castorini/ance-msmarco-passage')
     else:
         searcher = SimpleDenseSearcher(args.index_path, 'castorini/tct_colbert-msmarco')
-
+    '''
     doc_fetcher = None
     if args.add_canonical_response:
         if args.first_stage_ranker == "bm25":
             doc_fetcher = searcher
         else:
-            doc_fetcher = SimpleSearcher.from_prebuilt_index("cast2019")
+            doc_fetcher = collection_type_to_searcher(args.collection_type)
             doc_fetcher.set_bm25(k1, b)
 
     rewriters = []
@@ -291,5 +269,10 @@ if __name__ == "__main__":
                 doc2q = json.load(f)
                 hits_to_text_func = lambda hits: modify_to_append_all_queries(doc2q, hits)
 
-    pipeline = Pipeline(searcher, rewriters, count, reranker, second_stage_rewriters, initial_lists, args.log_queries,hits_to_text_func)
-    run_exp(args, pipeline, doc_fetcher)
+    pipeline = Pipeline(searcher, rewriters, count, reranker, second_stage_rewriters, initial_lists, args.log_queries,
+                        hits_to_text_func)
+    if args.collection_type=="cast":
+        session_runner=CastSessionRunner(pipeline, doc_fetcher)
+    else:
+        session_runner=ORQuacSessionRunner(pipeline, doc_fetcher)
+    run_exp(args,session_runner)
