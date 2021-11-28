@@ -20,7 +20,7 @@ FEATURE_DESC = {
     'input_ids': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
     'attention_mask': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
     'token_type_ids': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
-    'labels': tf.io.FixedLenFeature([], tf.int64)
+    'labels': tf.io.FixedLenFeature([1], tf.int64)
 }
 
 
@@ -42,15 +42,18 @@ if __name__ == "__main__":
     model_name = "castorini/monobert-large-msmarco-finetune-only"
     # model_name="bert-base-uncased"
     # put here dataset
-    raw_test_data = tf.data.TFRecordDataset(data_args.test_file, num_parallel_reads=tf.data.AUTOTUNE)
+    # num_parallel_reads=tf.data.AUTOTUNE 
+    raw_test_data = tf.data.TFRecordDataset(data_args.test_file)
     test_dataset = raw_test_data.map(_parse_function)
+    for t in  test_dataset.take(10).batch(2):
+        print(t)
     with training_args.strategy.scope():
         raw_train_data = tf.data.TFRecordDataset(data_args.train_file)
         parsed_train_dataset = raw_train_data.map(_parse_function)
         if training_args.max_steps > -1:
             max_train_size = training_args.max_steps * training_args.train_batch_size
-        train_dataset = parsed_train_dataset.take(max_train_size)
-        validation_dataset = parsed_train_dataset.skip(max_train_size)
+            train_dataset = parsed_train_dataset.take(max_train_size)
+            validation_dataset = parsed_train_dataset.skip(max_train_size)
         model = TFAutoModelForSequenceClassification.from_pretrained(model_name, type_vocab_size=2,from_pt=True)
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         metrics = ['accuracy']
