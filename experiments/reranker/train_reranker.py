@@ -22,15 +22,20 @@ FEATURE_DESC = {
     'input_ids': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
     'attention_mask': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
     'token_type_ids': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
-    'labels': tf.io.FixedLenFeature([1], tf.int64)
+    'labels': tf.io.FixedLenFeature([], tf.int64)
 }
 
 
 def _parse_function(example_proto):
     # Parse the input `tf.train.Example` proto using the dictionary above.
     example = tf.io.parse_single_example(example_proto, FEATURE_DESC)
-    return {'input_ids': example['input_ids'], 'attention_mask': example['attention_mask'],
-            'token_type_ids': example['token_type_ids']}, example['labels']
+    input_ids=tf.cast(example['input_ids'],tf.int32)
+    attention_mask=tf.cast(example['input_ids'],tf.int32)
+    attention_mask = tf.cast(example['attention_mask'], tf.int32)
+    token_type_ids = tf.cast(example['token_type_ids'], tf.int32)
+    labels=tf.cast(example['labels'], tf.int32)
+    return {'input_ids': input_ids, 'attention_mask': attention_mask,
+            'token_type_ids': token_type_ids},labels
 
 @dataclass
 class DataArguments:
@@ -63,13 +68,13 @@ if __name__ == "__main__":
         # metrics = metrics
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=training_args.learning_rate), loss=loss,metrics = metrics)
         if training_args.do_train:
+            #, callbacks=callbacks
             callbacks = [SavePretrainedCallback(output_dir=training_args.output_dir)]
             history=model.fit(train_dataset.batch(training_args.train_batch_size),
-                      epochs=int(training_args.num_train_epochs), verbose=1, callbacks=callbacks)
+                      epochs=int(training_args.num_train_epochs), verbose=1)
             print(history.history)
         if training_args.do_eval:
             test_files = tf.io.gfile.glob(data_args.test_files)
-            print(test_files)
             raw_test_data = tf.data.TFRecordDataset(test_files, num_parallel_reads=tf.data.AUTOTUNE)
             test_dataset = raw_test_data.map(_parse_function)
             print("eval model!!!")
