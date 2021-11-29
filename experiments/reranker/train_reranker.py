@@ -13,8 +13,8 @@ class SavePretrainedCallback(tf.keras.callbacks.Callback):
         self.output_dir = output_dir
 
     def on_epoch_end(self, epoch, logs=None):
-        self.model.save_weights("{}/tpu-model.h5".format(self.output_dir))
-        #self.model.save_pretrained(self.output_dir)
+        #self.model.save_weights("{}/tpu-model.h5".format(self.output_dir))
+        self.model.save_pretrained(self.output_dir)
 
 
 
@@ -22,7 +22,7 @@ FEATURE_DESC = {
     'input_ids': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
     'attention_mask': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
     'token_type_ids': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
-    'labels': tf.io.FixedLenFeature([], tf.int64)
+    'labels': tf.io.FixedLenFeature([1], tf.int64)
 }
 
 
