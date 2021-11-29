@@ -55,7 +55,7 @@ if __name__ == "__main__":
         if training_args.max_steps > -1:
             max_train_size = training_args.max_steps * training_args.train_batch_size
             train_dataset = parsed_train_dataset.take(max_train_size)
-            validation_dataset = parsed_train_dataset.skip(max_train_size)
+            #validation_dataset = parsed_train_dataset.skip(max_train_size)
         model = TFAutoModelForSequenceClassification.from_pretrained(model_name, type_vocab_size=2,from_pt=True)
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         metrics = ['accuracy']
@@ -64,9 +64,8 @@ if __name__ == "__main__":
         if training_args.do_train:
             callbacks = [SavePretrainedCallback(output_dir=training_args.output_dir)]
             history=model.fit(train_dataset.batch(training_args.train_batch_size),
-                      validation_data=validation_dataset.batch(training_args.eval_batch_size),
                       epochs=int(training_args.num_train_epochs),validation_steps=training_args.eval_steps, verbose=1, callbacks=callbacks)
             print(history)
         if training_args.do_eval:
-            res = model.evaluate(test_dataset.take(2048*500).batch(2048))
+            res = model.evaluate(test_dataset.batch(training_args.eval_batch_size))
             print("eval res:", res)
