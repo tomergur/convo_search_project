@@ -16,14 +16,14 @@ class ORQuacSessionRunner:
                 query = conversation[query_field]
                 conversation_num,tid= conversation["qid"].split("#")
                 qid = conversation["qid"]
-                print(i,qid, query)
+                print(i,qid,conversation_num,tid, query)
                 history=[t["question"] for t in conversation["history"]]
                 if args.log_queries:
                     run_res, query_dict = self.pipeline.retrieve(query, history=history,
-                                                            qid=qid,tid=conversation_num)
+                                                            qid=qid,tid=tid)
                     queries_dict[qid] = query_dict
                 else:
-                    run_res = self.pipeline.retrieve(query, history=history, qid=qid,tid=conversation_num)
+                    run_res = self.pipeline.retrieve(query, history=history, qid=qid,tid=tid)
                 #TODO: add or remove canonical response
                 '''
                 if self.doc_fetcher:
