@@ -13,7 +13,9 @@ class SavePretrainedCallback(tf.keras.callbacks.Callback):
         self.output_dir = output_dir
 
     def on_epoch_end(self, epoch, logs=None):
-        self.model.save_pretrained(self.output_dir)
+        self.model.save_weights("{}/tpu-model.h5".format(self.output_dir))
+        #self.model.save_pretrained(self.output_dir)
+
 
 
 FEATURE_DESC = {
@@ -64,10 +66,10 @@ if __name__ == "__main__":
             callbacks = [SavePretrainedCallback(output_dir=training_args.output_dir)]
             history=model.fit(train_dataset.batch(training_args.train_batch_size),
                       epochs=int(training_args.num_train_epochs), verbose=1, callbacks=callbacks)
-            print(history)
+            print(history.history)
         if training_args.do_eval:
             test_files = tf.io.gfile.glob(data_args.test_files)
-            print
+            print(test_files)
             raw_test_data = tf.data.TFRecordDataset(test_files, num_parallel_reads=tf.data.AUTOTUNE)
             test_dataset = raw_test_data.map(_parse_function)
             print("eval model!!!")
