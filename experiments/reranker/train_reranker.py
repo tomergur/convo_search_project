@@ -63,11 +63,14 @@ if __name__ == "__main__":
         if training_args.do_train:
             callbacks = [SavePretrainedCallback(output_dir=training_args.output_dir)]
             history=model.fit(train_dataset.batch(training_args.train_batch_size),
-                      epochs=int(training_args.num_train_epochs),validation_steps=training_args.eval_steps, verbose=1, callbacks=callbacks)
+                      epochs=int(training_args.num_train_epochs), verbose=1, callbacks=callbacks)
             print(history)
         if training_args.do_eval:
             test_files = tf.io.gfile.glob(data_args.test_files)
+            print
             raw_test_data = tf.data.TFRecordDataset(test_files, num_parallel_reads=tf.data.AUTOTUNE)
             test_dataset = raw_test_data.map(_parse_function)
-            res = model.evaluate(test_dataset.batch(training_args.eval_batch_size))
+            print("eval model!!!")
+            #training_args.eval_steps
+            res = model.evaluate(test_dataset.take(10*training_args.eval_batch_size).batch(training_args.eval_batch_size))
             print("eval res:", res)
