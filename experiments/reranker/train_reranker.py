@@ -89,6 +89,9 @@ if __name__ == "__main__":
             print("eval model!!!")
             #training_args.eval_steps
             #test_dataset.take(10 * training_args.eval_batch_size)
+            if training_args.eval_steps>-1:
+                max_eval_samples=training_args.eval_steps * training_args.eval_batch_size
+                test_dataset=test_dataset.take(max_eval_samples)
             res = model.evaluate(test_dataset.batch(training_args.eval_batch_size),return_dict=True)
             print("eval res:", res)
             with open("{}/eval_res.json".format(training_args.output_dir),'w') as f:
