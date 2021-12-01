@@ -56,13 +56,7 @@ def create_training_dataset(data_args, training_args):
 
 def create_model(model_name):
     model = TFAutoModelForSequenceClassification.from_pretrained(model_name, type_vocab_size=2, from_pt=True)
-    input_ids = tf.keras.layers.Input(shape=(512,), name='input_ids', dtype='int32')
-    att_mask = tf.keras.layers.Input(shape=(512,), name='attention_mask', dtype='int32')
-    tt_ids = tf.keras.layers.Input(shape=(512,), name='token_type_ids', dtype='int32')
-    logits = model(input_ids, token_type_ids=tt_ids, attention_mask=att_mask, return_dict=False,
-                   training=False)
-    return tf.keras.Model(inputs=(input_ids, att_mask, tt_ids), outputs=logits)
-    # return model
+    return model
 
 
 @dataclass
@@ -96,7 +90,7 @@ if __name__ == "__main__":
         if training_args.do_train:
             train_dataset = create_training_dataset(data_args, training_args)
             callbacks = [SavePretrainedCallback(output_dir=training_args.output_dir)]
-            callbacks = []
+            #callbacks = []
             history = model.fit(train_dataset, epochs=int(training_args.num_train_epochs), verbose=1,
                                 callbacks=callbacks)
             tokenizer = AutoTokenizer.from_pretrained(model_name)
