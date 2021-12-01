@@ -66,7 +66,7 @@ if __name__ == "__main__":
     for t in  test_dataset.take(10).batch(2):
         print(t)
     '''
-    if not os.path.exist(training_args.output_dir):
+    if not os.path.exists(training_args.output_dir):
         os.mkdir(training_args.output_dir)
     with training_args.strategy.scope():
             #validation_dataset = parsed_train_dataset.skip(max_train_size)
