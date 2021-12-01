@@ -42,18 +42,20 @@ def create_training_dataset(data_args,training_args):
     train_files = tf.io.gfile.glob(data_args.train_files)
     raw_train_data = tf.data.TFRecordDataset(train_files, num_parallel_reads=tf.data.AUTOTUNE)
     parsed_train_dataset = raw_train_data.map(_parse_function)
-    train_dataset = parsed_train_dataset.shuffle(buffer_size=len(parsed_train_dataset))
+    train_dataset=parsed_train_dataset
+    #train_dataset = parsed_train_dataset.shuffle(buffer_size=len(parsed_train_dataset))
     if training_args.max_steps > -1:
         max_train_size = training_args.max_steps * training_args.train_batch_size
         print("number of train samples:", max_train_size)
         train_dataset = train_dataset.take(max_train_size)
-    train_dataset.batch(training_args.train_batch_size)
+    train_dataset=train_dataset.batch(training_args.train_batch_size)
     return train_dataset
 
 @dataclass
 class DataArguments:
     train_files:str = "/v/tomergur/convo/ms_marco/records_dev_only_q/*.tfrecords"
     test_files:str ="/v/tomergur/convo/ms_marco/records_dev_only_q/*.tfrecords"
+
 if __name__ == "__main__":
     parser = HfArgumentParser((DataArguments,TFTrainingArguments))
     data_args,training_args= parser.parse_args_into_dataclasses()
