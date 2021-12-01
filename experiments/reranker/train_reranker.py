@@ -1,8 +1,9 @@
 import tensorflow as tf
-from transformers import TFAutoModelForSequenceClassification
+from transformers import TFAutoModelForSequenceClassification,AutoTokenizer
 from transformers import HfArgumentParser, TFTrainingArguments
 from dataclasses import dataclass, field
 import json
+import os
 # region Helper classes
 class SavePretrainedCallback(tf.keras.callbacks.Callback):
     # Hugging Face models have a save_pretrained() method that saves both the weights and the necessary
@@ -65,6 +66,8 @@ if __name__ == "__main__":
     for t in  test_dataset.take(10).batch(2):
         print(t)
     '''
+    if not os.path.exist(training_args.output_dir):
+        os.mkdir(training_args.output_dir)
     with training_args.strategy.scope():
             #validation_dataset = parsed_train_dataset.skip(max_train_size)
         model = TFAutoModelForSequenceClassification.from_pretrained(model_name, type_vocab_size=2,from_pt=True)
@@ -74,9 +77,10 @@ if __name__ == "__main__":
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=training_args.learning_rate), loss=loss,metrics = metrics)
         if training_args.do_train:
             train_dataset=create_training_dataset(data_args,training_args)
-            #, callbacks=callbacks
             callbacks = [SavePretrainedCallback(output_dir=training_args.output_dir)]
-            history=model.fit(train_dataset,epochs=int(training_args.num_train_epochs), verbose=1)
+            history=model.fit(train_dataset,epochs=int(training_args.num_train_epochs), verbose=1,callbacks=callbacks)
+            tokenizer=AutoTokenizer.from_pretrained(model_name)
+            tokenizer.save_pretrained(training_args.output_dir)
             print(history.history)
         if training_args.do_eval:
             test_files = tf.io.gfile.glob(data_args.test_files)
@@ -94,5 +98,5 @@ if __name__ == "__main__":
                 test_dataset=test_dataset.take(max_eval_samples)
             res = model.evaluate(test_dataset.batch(training_args.eval_batch_size),return_dict=True)
             print("eval res:", res)
-            with open("{}/eval_res.json".format(training_args.output_dir),'w') as f:
+            with open("{}/{}_eval_res.json".format(training_args.output_dir,training_args.run_name),'w') as f:
                 json.dump(res,f)
