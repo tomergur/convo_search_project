@@ -54,8 +54,8 @@ def create_training_dataset(data_args, training_args):
     return train_dataset
 
 
-def create_model(model_name):
-    model = TFAutoModelForSequenceClassification.from_pretrained(model_name, type_vocab_size=2, from_pt=True)
+def create_model(model_name,from_pt):
+    model = TFAutoModelForSequenceClassification.from_pretrained(model_name, type_vocab_size=2, from_pt=from_pt)
     return model
 
 
@@ -64,6 +64,7 @@ class DataArguments:
     train_files: str = "/v/tomergur/convo/ms_marco/records_dev_only_q/*.tfrecords"
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_only_q/*.tfrecords"
     model_name: str="castorini/monobert-large-msmarco-finetune-only"
+    from_pt:bool= False
 
 
 if __name__ == "__main__":
@@ -82,7 +83,7 @@ if __name__ == "__main__":
         os.mkdir(training_args.output_dir)
     with training_args.strategy.scope():
         # validation_dataset = parsed_train_dataset.skip(max_train_size)
-        model = create_model(model_name)
+        model = create_model(model_name,data_args.from_pt)
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         metrics = ['accuracy']
         # metrics = metrics
