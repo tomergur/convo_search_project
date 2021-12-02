@@ -78,7 +78,9 @@ def parse_args():
     parser.add_argument('--rerank', action='store_true', default=False, help='rerank BM25 output using BERT')
     parser.add_argument('--reranker_batch_size', type=int, default=32, help='reranker batch size for inference')
     parser.add_argument('--reranker_type', default='bert', help='selet the reranker type')
+    parser.add_argument('--reranker_model_path',default="castorini/monobert-large-msmarco-finetune-only")
     parser.add_argument('--reranker_device', help='reranker device to use')
+    parser.add_argument('--is_tf',action='store_true')
 
     #doc modfier
     parser.add_argument("--modify_documents_func")
@@ -145,7 +147,7 @@ def output_queries_file(output_path, quries_dict):
         json.dump(quries_dict, f, indent=True)
 
 def build_reranker(
-        args, name_or_path: str = "castorini/monobert-large-msmarco-finetune-only", device=None, strategy=None):
+        args, device=None, strategy=None):
     """Returns a  reranker using the provided model name or path to load from"""
     if args.reranker_type == "bm25":
         #TODO: remove constant path and maybe adapt to or_quac
@@ -159,7 +161,9 @@ def build_reranker(
         return Bm25Reranker(index_reader,searcher.get_similarity())
     elif args.reranker_type=="jaccard":
         return JaacardReranker('jaccard_use_max' in args)
-    model = BertReranker.get_model(name_or_path, from_pt=True)
+    name_or_path=args.reranker_model_path
+    from_pt= True if 'is_tf' not in args else False
+    model = BertReranker.get_model(name_or_path, from_pt=from_pt)
     tokenizer = BertReranker.get_tokenizer(name_or_path)
     return BertReranker(model, tokenizer, batch_size=args.reranker_batch_size, device=device, strategy=strategy)
 
