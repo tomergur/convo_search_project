@@ -23,7 +23,7 @@ class SavePretrainedCallback(tf.keras.callbacks.Callback):
 FEATURE_DESC = {
     'input_ids': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
     'attention_mask': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
-    'token_type_ids': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
+    'token_type_ids': tf.io.FixedLenSequenceFeature((512,), tf.int64, allow_missing=True),
     'labels': tf.io.FixedLenFeature([], tf.int64)
 }
 
@@ -63,13 +63,14 @@ def create_model(model_name):
 class DataArguments:
     train_files: str = "/v/tomergur/convo/ms_marco/records_dev_only_q/*.tfrecords"
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_only_q/*.tfrecords"
+    model_name: str="castorini/monobert-large-msmarco-finetune-only"
 
 
 if __name__ == "__main__":
     parser = HfArgumentParser((DataArguments, TFTrainingArguments))
     data_args, training_args = parser.parse_args_into_dataclasses()
     # Create a description of the features.
-    model_name = "castorini/monobert-large-msmarco-finetune-only"
+    model_name = data_args.model_name
     # model_name="bert-base-uncased"
     # put here dataset
 
