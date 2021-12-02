@@ -23,7 +23,7 @@ class SavePretrainedCallback(tf.keras.callbacks.Callback):
 FEATURE_DESC = {
     'input_ids': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
     'attention_mask': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
-    'token_type_ids': tf.io.FixedLenSequenceFeature((512,), tf.int64, allow_missing=True),
+    'token_type_ids': tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
     'labels': tf.io.FixedLenFeature([], tf.int64)
 }
 
