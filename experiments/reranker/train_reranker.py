@@ -64,7 +64,10 @@ class DataArguments:
     train_files: str = "/v/tomergur/convo/ms_marco/records_dev_only_q/*.tfrecords"
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_only_q/*.tfrecords"
     model_name: str="castorini/monobert-large-msmarco-finetune-only"
+    checkpoint_dir: str =None
+    checkpoint_file: str = None
     from_pt:bool= False
+
 
 
 if __name__ == "__main__":
@@ -73,12 +76,6 @@ if __name__ == "__main__":
     # Create a description of the features.
     model_name = data_args.model_name
     # model_name="bert-base-uncased"
-    # put here dataset
-
-    '''
-    for t in  test_dataset.take(10).batch(2):
-        print(t)
-    '''
     if not os.path.exists(training_args.output_dir):
         os.mkdir(training_args.output_dir)
     with training_args.strategy.scope():
@@ -91,21 +88,25 @@ if __name__ == "__main__":
                       metrics=metrics)
         if training_args.do_train:
             train_dataset = create_training_dataset(data_args, training_args)
-            callbacks = [SavePretrainedCallback(output_dir=training_args.output_dir)]
-            #callbacks = []
+            #callbacks = [SavePretrainedCallback(output_dir=training_args.output_dir)]
+            callbacks = []
+            if data_args.checkpoint_dir:
+                checkpoint_filepath=data_args.checkpoint_dir+"/weights_{batch}.h5"
+                model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_filepath,save_freq=training_args.save_steps,save_weights_only=True)
+                callbacks.append(model_checkpoint_callback)
+            if data_args.checkpoint_file:
+                print("restore chekpoint")
+                model.load_weights("{}/{}".format(data_args.checkpoint_dir,data_args.checkpoint_file))
             history = model.fit(train_dataset, epochs=int(training_args.num_train_epochs), verbose=1,
                                 callbacks=callbacks)
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             tokenizer.save_pretrained(training_args.output_dir)
+            model.save_pretrained(training_args.output_dir)
             print(history.history)
         if training_args.do_eval:
             test_files = tf.io.gfile.glob(data_args.test_files)
             raw_test_data = tf.data.TFRecordDataset(test_files, num_parallel_reads=tf.data.AUTOTUNE)
             test_dataset = raw_test_data.map(_parse_function)
-            '''
-            for t in test_dataset.take(10).batch(2):
-                print(t)
-            '''
             print("eval model!!!")
             # training_args.eval_steps
             # test_dataset.take(10 * training_args.eval_batch_size)
