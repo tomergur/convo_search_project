@@ -7,6 +7,19 @@ import os
 
 
 # region Helper classes
+#TODO: handle crappy chekpointing mechanism
+class WeightCheckpointCallback(tf.keras.callbacks.Callback):
+    def __init__(self,checkpoint_path,save_freq,initial_batch_number=0):
+        self.checkpoint_path=checkpoint_path
+        self.save_freq=save_freq
+        self.initial_batch_number=initial_batch_number
+    def on_train_batch_end(self,batch,logs):
+        cur_batch=batch+1+self.initial_batch_number
+        if (cur_batch)%self.save_freq!=0:
+            return
+        file_path=self.checkpoint_path.format(batch=cur_batch)
+        self.model.save_weights(file_path)
+
 class SavePretrainedCallback(tf.keras.callbacks.Callback):
     # Hugging Face models have a save_pretrained() method that saves both the weights and the necessary
     # metadata to allow them to be loaded as a pretrained model in future. This is a simple Keras callback
@@ -50,6 +63,8 @@ def create_training_dataset(data_args, training_args):
         max_train_size = training_args.max_steps * training_args.train_batch_size
         print("number of train samples:", max_train_size)
         train_dataset = train_dataset.take(max_train_size)
+    if data_args.checkpoint_step>0:
+        train_dataset=train_dataset.skip(data_args.checkpoint_step * training_args.train_batch_size)
     train_dataset = train_dataset.batch(training_args.train_batch_size)
     return train_dataset
 
@@ -65,7 +80,7 @@ class DataArguments:
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_only_q/*.tfrecords"
     model_name: str="castorini/monobert-large-msmarco-finetune-only"
     checkpoint_dir: str =None
-    checkpoint_file: str = None
+    checkpoint_step: int = 0
     from_pt:bool= False
 
 
@@ -92,17 +107,20 @@ if __name__ == "__main__":
             callbacks = []
             if data_args.checkpoint_dir:
                 checkpoint_filepath=data_args.checkpoint_dir+"/weights_{batch}.h5"
-                model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_filepath,save_freq=training_args.save_steps,save_weights_only=True)
+                #model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_filepath,save_freq=training_args.save_steps,save_weights_only=True)
+                model_checkpoint_callback=WeightCheckpointCallback(checkpoint_filepath,training_args.save_steps,data_args.checkpoint_step)
                 callbacks.append(model_checkpoint_callback)
-            if data_args.checkpoint_file:
+            if data_args.checkpoint_step>0:
                 print("restore chekpoint")
-                model.load_weights("{}/{}".format(data_args.checkpoint_dir,data_args.checkpoint_file))
-            history = model.fit(train_dataset, epochs=int(training_args.num_train_epochs), verbose=1,
+                model.load_weights("{}/weights_{}.h5".format(data_args.checkpoint_dir,data_args.checkpoint_step))
+            if training_args.max_steps>data_args.checkpoint_step:
+                history = model.fit(train_dataset, epochs=int(training_args.num_train_epochs), verbose=1,
                                 callbacks=callbacks)
+                print(history.history)
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             tokenizer.save_pretrained(training_args.output_dir)
             model.save_pretrained(training_args.output_dir)
-            print(history.history)
+
         if training_args.do_eval:
             test_files = tf.io.gfile.glob(data_args.test_files)
             raw_test_data = tf.data.TFRecordDataset(test_files, num_parallel_reads=tf.data.AUTOTUNE)
