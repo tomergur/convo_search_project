@@ -14,7 +14,7 @@ class RunsCache:
 
     def __init__(self,cache_path):
         self.cache_path=cache_path
-        self.lazy_loading=os.path.is_dir(cache_path)
+        self.lazy_loading=os.path.isdir(cache_path)
         if not self.lazy_loading:
             self.intial_lists=self._load_intial_lists()
 
