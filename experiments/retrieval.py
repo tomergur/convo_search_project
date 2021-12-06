@@ -3,20 +3,18 @@ import json
 import time
 
 from pyserini.search import SimpleSearcher
-from pyserini.dsearch import SimpleDenseSearcher
 import tensorflow as tf
-
+import os
 from convo_search_project.pipeline import Pipeline
 from convo_search_project.rerankers import BertReranker,Bm25Reranker
 from convo_search_project.rerankers import JaacardReranker
 from convo_search_project.datasets import CastSessionRunner,ORQuacSessionRunner
-
+from convo_search_project.runs_cache import RunsCache
 from convo_search_project.doc_modify import modify_to_all_queries,modify_to_single_queries,modify_to_append_all_queries
 # TODO: delete
 from convo_search_project.mono_bert import MonoBERT
 
-from convo_search_project.rewriters import create_rewriter, HqeRewriter
-from collections import namedtuple
+from convo_search_project.rewriters import create_rewriter
 from pyserini.index import IndexReader
 
 def parse_args():
@@ -44,7 +42,7 @@ def parse_args():
     parser.add_argument('--b', type=float, default=0.68, help='BM25 b parameter')
 
     # parameters for cached first stage retreival
-    parser.add_argument("--first_stage_cache_file", help="the path to the first stage cache file")
+    parser.add_argument("--first_stage_cache_path", help="the path to the first stage cache file/s")
 
     # index path for dense retrieval
     parser.add_argument("--index_path")
@@ -105,8 +103,7 @@ def output_run_file(output_path, runs):
 
 
 # output the intial list files as json
-
-def output_as_initial_list(output_path, runs, doc_searcher):
+def output_as_initial_list_as_single_file(output_path, runs, doc_searcher):
     res = {}
     for qid, run_res in runs.items():
         q_res = []
@@ -126,21 +123,31 @@ def output_as_initial_list(output_path, runs, doc_searcher):
     with open(output_path, "w") as f:
         json.dump(res, f, ensure_ascii=False, indent=True)
 
+def output_as_initial_list(run_name,output_dir, runs, doc_searcher):
+    if len(runs)<=300:
+        lists_output_file = "{}/{}_lists.json".format(args.output_dir, args.run_name)
+        output_as_initial_list_as_single_file(lists_output_file, runs, doc_searcher)
+        return
+    lists_dir="{}/{}".format(output_dir,run_name)
+    if not os.path.exists(lists_dir):
+        os.mkdir(lists_dir)
+    for qid, run_res in runs.items():
+        q_res = []
+        for rank, doc in enumerate(run_res, start=1):
+            doc_dict = {}
+            doc_dict['docid'] = doc.docid
+            doc_dict['rank'] = rank
+            doc_dict['score'] = float(doc.score)
+            if doc_searcher:
+                doc_content = doc_searcher.doc(doc.docid)
+                if doc_content:
+                    doc_dict['content'] = doc_content.raw()
+            else:
+                doc_dict['content'] = doc.raw
+            q_res.append(doc_dict)
+        with open("{}/{}.json".format(lists_dir,qid), "w") as f:
+            json.dump(q_res, f, ensure_ascii=False, indent=True)
 
-#TODO: remove index hit
-IndexHit = namedtuple('IndexHit', 'docid score raw')
-from types import SimpleNamespace
-
-
-def load_intial_lists(path):
-    res = {}
-    with open(path) as f:
-        intial_lists = json.load(f)
-    for qid, q_res in intial_lists.items():
-        # q_simple= [IndexHit(d["docid"],d["score"],d["content"]) for d in q_res]
-        q_simple = [SimpleNamespace(docid=d["docid"], score=d["score"], raw=d["content"]) for d in q_res]
-        res[qid] = q_simple
-    return res
 
 def output_queries_file(output_path, quries_dict):
     with open(output_path, "w") as f:
@@ -183,10 +190,9 @@ def run_exp(args, session_runner):
     run_output_file = "{}/{}_run.txt".format(args.output_dir, args.run_name)
     output_run_file(run_output_file, runs)
     if args.log_lists:
-        lists_output_file = "{}/{}_lists.json".format(args.output_dir, args.run_name)
         doc_searcher = collection_type_to_searcher(args.collection_type) if args.first_stage_ranker in ["ance",
                                                                                                      "tct"] else None
-        output_as_initial_list(lists_output_file, runs, doc_searcher)
+        output_as_initial_list(args.run_name,args.output_dir, runs, doc_searcher)
     if args.log_queries:
         queries_output_file = "{}/{}_queries.json".format(args.output_dir, args.run_name)
         output_queries_file(queries_output_file, queries_dict)
@@ -234,7 +240,7 @@ if __name__ == "__main__":
         searcher.set_bm25(k1, b)
     elif args.first_stage_ranker == "cache":
         searcher = None
-        initial_lists = load_intial_lists(args.first_stage_cache_file)
+        initial_lists = RunsCache(args.first_stage_cache_path)
 
     #TODO: remove dense retrieval
     '''

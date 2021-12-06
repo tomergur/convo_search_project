@@ -16,7 +16,7 @@ def serialize_example(input_ids, label):
     return example.SerializeToString()
 
 
-def serialize_query_passage_pair(qid, pid, passage, query, label, tokenizer, doc2q, writer):
+def serialize_query_passage_pair(qid, pid, query, passage, label, tokenizer, doc2q, writer):
     num_queries = np.random.choice(POSSIBLE_NUM_QUERIES)
 
     expanded_doc = "[SEP]".join([passage] + doc2q[pid][:num_queries]) if not ONLY_QUERIES else "[SEP]".join(
@@ -30,24 +30,31 @@ if __name__ == "__main__":
     # constants
     doc2q_file = "/v/tomergur/convo/ms_marco/ms_marco_doc2q_res.json"
     collection_file = "/v/tomergur/convo/ms_marco/collection.tsv"
-
     tokenizer_name = "castorini/monobert-large-msmarco-finetune-only"
-
-    input_file = "/v/tomergur/convo/ms_marco/top1000.dev"
-    input_file = "/v/tomergur/convo/ms_marco/qidpidtriples.train.full.shuf.tsv"
-
     qrel_file = "/v/tomergur/convo/ms_marco/qrels.dev.tsv"
     queries_file = "/v/tomergur/convo/ms_marco/queries.train.tsv"
 
-    output_path_format = "/v/tomergur/convo/ms_marco/records_train_only_q/rec_{}.tfrecords"
+    #output_path_format = "/v/tomergur/convo/ms_marco/records_train_only_q/rec_{}.tfrecords"
     #output_path_format = "/v/tomergur/convo/ms_marco/records_dev_only_q/rec_{}.tfrecords"
-
-
-
-    max_rows = 6400000
+    #output_path_format = "/v/tomergur/convo/ms_marco/records_dev_exp_doc_5/rec_{}.tfrecords"
+    #output_path_format = "/v/tomergur/convo/ms_marco/records_train_exp_doc_5/rec_{}.tfrecords"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input_file', required=True,
+                        help='the name of the current run. will be the name of the output files')
+    parser.add_argument('--max_rows',type=int,default=6400000)
+    parser.add_argument('--max_per_file',type=int,default=29*1000)
+    parser.add_argument('--output_path_format',required=True)
+    parser.add_argument('--pair_mode',default=False,action='store_true')
+    parser.add_argument('--only_queries',default=False,action='store_true')
+    args=parser.parse_args()
+    input_file = args.input_file
+    output_path_format=args.output_path_format
+    max_rows = args.max_rows
     max_rows_per_file =29*1000
-    IS_PAIR_MODE = True
-    ONLY_QUERIES = True
+    #max_rows = 6700000
+    #max_rows_per_file = 58 * 1000
+    IS_PAIR_MODE = args.pair_mode
+    ONLY_QUERIES = args.only_queries
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=True)
     # POSSIBLE_NUM_QUERIES = [5, 10, 20, 40]
     POSSIBLE_NUM_QUERIES = [5]
