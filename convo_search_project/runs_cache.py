@@ -20,7 +20,7 @@ class RunsCache:
 
     def __getitem__(self,qid):
         if self.lazy_loading:
-            with open("{}/{}".format(self.cache_path,qid)) as f:
+            with open("{}/{}.json".format(self.cache_path,qid)) as f:
                 q_res= json.load(f)
                 q_simple = [SimpleNamespace(docid=d["docid"], score=d["score"], raw=d["content"]) for d in q_res]
                 return q_simple
