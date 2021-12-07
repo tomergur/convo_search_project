@@ -91,17 +91,6 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-
-def output_run_file(output_path, runs):
-    print("write output", output_path)
-    with open(output_path, "w") as f:
-        for qid, run_res in runs.items():
-            for rank, doc in enumerate(run_res):
-                docno = doc.docid
-                score = doc.score
-                f.write("{}\tQ0\t{}\t{}\t{}\t{}\n".format(qid, docno, rank + 1, score, "convo"))
-
-
 # output the intial list files as json
 def output_as_initial_list_as_single_file(output_path, runs, doc_searcher):
     res = {}
@@ -187,8 +176,6 @@ def run_exp(args, session_runner):
     exp_start_time = time.time()
     queries_dict, runs = session_runner.run_sessions(args)
     print("finished running expriment time is:{} min".format((time.time() - exp_start_time) / 60))
-    run_output_file = "{}/{}_run.txt".format(args.output_dir, args.run_name)
-    output_run_file(run_output_file, runs)
     if args.log_lists:
         doc_searcher = collection_type_to_searcher(args.collection_type) if args.first_stage_ranker in ["ance",
                                                                                                      "tct"] else None

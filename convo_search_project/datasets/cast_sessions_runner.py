@@ -1,5 +1,6 @@
 import json
 import time
+from .utils import output_run_file
 
 class CastSessionRunner:
     def __init__(self,pipeline,doc_fetcher):
@@ -36,5 +37,7 @@ class CastSessionRunner:
                 runs[qid] = run_res
                 print("query {} runtime is:{} sec".format(qid, time.time() - query_start_time))
             print("session {} runtime is:{} sec".format(session_num, time.time() - start_time))
+        run_output_file = "{}/{}_run.txt".format(args.output_dir, args.run_name)
+        output_run_file(run_output_file, runs)
         return queries_dict, runs
 

@@ -45,7 +45,6 @@ def _parse_function(example_proto):
     # Parse the input `tf.train.Example` proto using the dictionary above.
     example = tf.io.parse_single_example(example_proto, FEATURE_DESC)
     input_ids = tf.cast(example['input_ids'], tf.int32)
-    attention_mask = tf.cast(example['input_ids'], tf.int32)
     attention_mask = tf.cast(example['attention_mask'], tf.int32)
     token_type_ids = tf.cast(example['token_type_ids'], tf.int32)
     labels = tf.cast(example['labels'], tf.int32)
@@ -77,7 +76,7 @@ def create_model(model_name,from_pt):
 @dataclass
 class DataArguments:
     train_files: str = "/v/tomergur/convo/ms_marco/records_dev_only_q/*.tfrecords"
-    test_files: str = "/v/tomergur/convo/ms_marco/records_dev_only_q/*.tfrecords"
+    test_files: str = "/v/tomergur/convo/ms_marco/records_dev_exp_doc_5/*.tfrecords"
     model_name: str="castorini/monobert-large-msmarco-finetune-only"
     checkpoint_dir: str =None
     checkpoint_step: int = 0
