@@ -40,6 +40,13 @@ FEATURE_DESC = {
     'labels': tf.io.FixedLenFeature([], tf.int64)
 }
 
+FEATURE_DESC = {
+    'input_ids': tf.io.FixedLenFeature([512], tf.int64),
+    'attention_mask': tf.io.FixedLenFeature([512], tf.int64),
+    'token_type_ids': tf.io.FixedLenFeature([512], tf.int64),
+    'labels': tf.io.FixedLenFeature([1], tf.int64)
+}
+
 
 def _parse_function(example_proto):
     # Parse the input `tf.train.Example` proto using the dictionary above.
@@ -87,6 +94,8 @@ class DataArguments:
 if __name__ == "__main__":
     parser = HfArgumentParser((DataArguments, TFTrainingArguments))
     data_args, training_args = parser.parse_args_into_dataclasses()
+    if training_args.tpu_name:
+        print("All devices: ", tf.config.list_logical_devices('TPU'))
     # Create a description of the features.
     model_name = data_args.model_name
     # model_name="bert-base-uncased"
