@@ -62,7 +62,7 @@ def _parse_function(example_proto):
 def create_training_dataset(data_args, training_args):
     train_files = tf.io.gfile.glob(data_args.train_files)
     raw_train_data = tf.data.TFRecordDataset(train_files, num_parallel_reads=tf.data.AUTOTUNE)
-    parsed_train_dataset = raw_train_data.map(_parse_function)
+    parsed_train_dataset = raw_train_data.map(_parse_function,num_parallel_calls=tf.data.AUTOTUNE)
     train_dataset = parsed_train_dataset
     # train_dataset = parsed_train_dataset.shuffle(buffer_size=len(parsed_train_dataset))
     if training_args.max_steps > -1:
@@ -71,7 +71,7 @@ def create_training_dataset(data_args, training_args):
         train_dataset = train_dataset.take(max_train_size)
     if data_args.checkpoint_step>0:
         train_dataset=train_dataset.skip(data_args.checkpoint_step * training_args.train_batch_size)
-    train_dataset = train_dataset.batch(training_args.train_batch_size)
+    train_dataset = train_dataset.batch(training_args.train_batch_size).prefetch(tf.data.AUTOTUNE)
     return train_dataset
 
 
@@ -94,8 +94,6 @@ class DataArguments:
 if __name__ == "__main__":
     parser = HfArgumentParser((DataArguments, TFTrainingArguments))
     data_args, training_args = parser.parse_args_into_dataclasses()
-    if training_args.tpu_name:
-        print("All devices: ", tf.config.list_logical_devices('TPU'))
     # Create a description of the features.
     model_name = data_args.model_name
     # model_name="bert-base-uncased"
