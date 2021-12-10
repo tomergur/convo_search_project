@@ -61,7 +61,7 @@ def _parse_function(example_proto):
 
 def create_training_dataset(data_args, training_args):
     train_files = tf.io.gfile.glob(data_args.train_files)
-    raw_train_data = tf.data.TFRecordDataset(train_files, num_parallel_reads=tf.data.AUTOTUNE)
+    raw_train_data = tf.data.TFRecordDataset(train_files, num_parallel_reads=None)
     parsed_train_dataset = raw_train_data.map(_parse_function,num_parallel_calls=tf.data.AUTOTUNE)
     train_dataset = parsed_train_dataset
     # train_dataset = parsed_train_dataset.shuffle(buffer_size=len(parsed_train_dataset))
