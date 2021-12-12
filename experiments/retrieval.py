@@ -75,7 +75,7 @@ def parse_args():
     # parameters for reranker
     parser.add_argument('--rerank', action='store_true', default=False, help='rerank BM25 output using BERT')
     parser.add_argument('--reranker_batch_size', type=int, default=32, help='reranker batch size for inference')
-    parser.add_argument('--reranker_type', default='bert', help='selet the reranker type')
+    parser.add_argument('--reranker_type', default='bert', help='select the reranker type')
     parser.add_argument('--reranker_model_path',default="castorini/monobert-large-msmarco-finetune-only")
     parser.add_argument('--reranker_device', help='reranker device to use')
     parser.add_argument('--is_tf',action='store_true')
@@ -85,7 +85,7 @@ def parse_args():
     parser.add_argument("--doc2q_path")
 
     #jaccard
-    parser.add_argument('--jaccard_use_max',action='store_true')
+    parser.add_argument('--jaccard_func')
 
     # Return args
     args = parser.parse_args()
@@ -156,7 +156,7 @@ def build_reranker(
             index_reader=None
         return Bm25Reranker(index_reader,searcher.get_similarity())
     elif args.reranker_type=="jaccard":
-        return JaacardReranker('jaccard_use_max' in args)
+        return JaacardReranker(args.jaccard_func if 'jaccard_func' in args else None)
     name_or_path=args.reranker_model_path
     from_pt= True if 'is_tf' not in args else False
     model = BertReranker.get_model(name_or_path, from_pt=from_pt)
@@ -257,13 +257,14 @@ if __name__ == "__main__":
                               strategy=strategy) if args.rerank else None
     hits_to_text_func=None
     if 'modify_documents_func' in args:
+        with open(args.doc2q_path) as f:
+            doc2q = json.load(f)
         if args.modify_documents_func=="doc2q_all":
-            with open(args.doc2q_path) as f:
-                doc2q=json.load(f)
             hits_to_text_func=lambda hits:modify_to_all_queries(doc2q,hits)
+        elif args.modify_documents_func.starts_with("doc2q_idx_"):
+            q_idx=int(args.modify_documents_func.split("_")["-1"])-1
+            hits_to_text_func=lambda hits:modify_to_single_queries(doc2q,q_idx)
         elif args.modify_documents_func=="doc2q_app_all":
-            with open(args.doc2q_path) as f:
-                doc2q = json.load(f)
                 hits_to_text_func = lambda hits: modify_to_append_all_queries(doc2q, hits)
 
     pipeline = Pipeline(searcher, rewriters, count, reranker, second_stage_rewriters, initial_lists, args.log_queries,
