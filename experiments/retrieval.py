@@ -261,7 +261,7 @@ if __name__ == "__main__":
             doc2q = json.load(f)
         if args.modify_documents_func=="doc2q_all":
             hits_to_text_func=lambda hits:modify_to_all_queries(doc2q,hits)
-        elif args.modify_documents_func.starts_with("doc2q_idx_"):
+        elif args.modify_documents_func.startswith("doc2q_idx_"):
             q_idx=int(args.modify_documents_func.split("_")["-1"])-1
             print("run modify idx:",q_idx)
             hits_to_text_func=lambda hits:modify_to_single_queries(doc2q,q_idx,hits)
