@@ -63,6 +63,7 @@ def parse_args():
                         help="start using the t5 output from an offset and not the best query")
     parser.add_argument('--T5_rewriter_sliding_window_fusion', action='store_true',
                         help='use sliding window fusion mode')
+    parser.add_argument('--T5_append_history',action='store_true')
     # file rewriter
     parser.add_argument('--queries_rewrites_path', help='path to query rewrites cached in csv')
 
