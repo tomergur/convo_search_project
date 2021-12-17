@@ -4,7 +4,7 @@ from transformers import T5Tokenizer, TFT5ForConditionalGeneration
 from spacy.lang.en import English
 class T5Rewriter():
     def __init__(self, model_str, num_queries_generated=1, context_window=None, selected_query_rank=1, from_pt=True,
-                 max_length=64, num_beams=10, sliding_window_fusion=False,
+                 append_history=False,max_length=64, num_beams=10, sliding_window_fusion=False,
                  early_stopping=True):
         self.model = TFT5ForConditionalGeneration.from_pretrained(model_str, from_pt=from_pt)
         self.tokenizer = T5Tokenizer.from_pretrained(model_str)
@@ -16,6 +16,7 @@ class T5Rewriter():
         self.sliding_window_fusion = sliding_window_fusion
         self.num_queries_generated = num_queries_generated
         self.eng = English()
+        self.append_history=append_history
         # self.ntr = Ntr()
 
     def rewrite(self, query, **ctx):
@@ -57,5 +58,7 @@ class T5Rewriter():
                 output_ids[i, 0:],
                 clean_up_tokenization_spaces=True,
                 skip_special_tokens=True)
+            if self.append_history:
+                query_rewrite=" ".join(history+[query_rewrite])
             query_rewrites.append(query_rewrite)
         return query_rewrites[0] if len(query_rewrites) == 1 else query_rewrites

@@ -30,9 +30,10 @@ def _create_t5_rewriter(args):
     context_window = args.T5_rewriter_context_window if 'T5_rewriter_context_window' in args else None
     selected_query_rank = args.T5_rewriter_selected_query_rank if 'T5_rewriter_selected_query_rank' in args else 1
     sliding_window_fusion = args.T5_rewriter_sliding_window_fusion if 'T5_rewriter_sliding_window_fusion' in args else False
+    append_history=args.T5_append_history if 'T5_append_history' in args else False
     t5_rewriter = T5Rewriter(model_str=args.T5_model_str, num_queries_generated=args.T5_num_queries_generated,
                              context_window=context_window, selected_query_rank=selected_query_rank,
-                             sliding_window_fusion=sliding_window_fusion)
+                             sliding_window_fusion=sliding_window_fusion,append_history=append_history)
     return t5_rewriter
 
 
