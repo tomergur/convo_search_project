@@ -59,6 +59,7 @@ class T5Rewriter():
                 clean_up_tokenization_spaces=True,
                 skip_special_tokens=True)
             if self.append_history:
-                query_rewrite=" ".join(history+[query_rewrite])
+                history_query=" ".join(history)
+                query_rewrite="[SEP]".join([history_query,query_rewrite])
             query_rewrites.append(query_rewrite)
         return query_rewrites[0] if len(query_rewrites) == 1 else query_rewrites
