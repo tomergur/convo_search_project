@@ -4,3 +4,9 @@ torch==1.7.1
 #remove_later
 chatty_goose
 pytorch-transformers==1.2.0
+
+#ltr
+pytrec_eval
+tensorflow_ranking
+#seq2seq training
+datasets
