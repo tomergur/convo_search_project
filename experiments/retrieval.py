@@ -67,6 +67,8 @@ def parse_args():
     # file rewriter
     parser.add_argument('--queries_rewrites_path', help='path to query rewrites cached in csv')
 
+    #use [SEP] token for each turn
+    parser.add_argument('--use_sep_token',action='store_true')
     # prev turns rewriter
     parser.add_argument('--prev_turns', type=int)
 

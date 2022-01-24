@@ -47,11 +47,12 @@ def create_model(model_name,from_pt):
 @dataclass
 class DataArguments:
     train_files: str = "/v/tomergur/convo/reranking/quac_train_t5/*.tfrecords"
-    valid_files: str="/v/tomergur/convo/reranking/quac_dev_t5/*.tfrecords",
+    valid_files: str="/v/tomergur/convo/reranking/quac_dev_t5/*.tfrecords"
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_exp_doc_5/*.tfrecords"
     model_name_or_path: str="castorini/monobert-large-msmarco-finetune-only"
     checkpoint_dir: str =None
     from_pt:bool= False
+    early_stop:bool =False
 
 
 
@@ -75,6 +76,8 @@ if __name__ == "__main__":
             valid_dataset =create_dataset(data_args.valid_files, training_args.eval_batch_size,training_args.max_steps)
             callbacks = []
             tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+            if data_args.early_stop:
+                callbacks.append(tf.keras.callbacks.EarlyStopping(monitor="val_loss",restore_best_weights=True))
             if data_args.checkpoint_dir:
                 checkpoint_filepath=data_args.checkpoint_dir+"/weights_{epoch}.h5"
                 #model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_filepath,save_weights_only=True)
