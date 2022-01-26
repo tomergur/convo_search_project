@@ -11,7 +11,8 @@ from pyserini.search import SimpleSearcher
 
 
 def _create_all_hisotry_rewriter(args):
-    return AllHistoryRewriter()
+    sep_token=" [SEP] " if 'use_sep_token' in args else ' '
+    return AllHistoryRewriter(sep_token)
 
 
 def _create_prev_utter_rewriter(args):
