@@ -240,7 +240,7 @@ if __name__ == "__main__":
         searcher = SimpleDenseSearcher(args.index_path, 'castorini/tct_colbert-msmarco')
     '''
     doc_fetcher = None
-    if args.add_canonical_response:
+    if args.add_canonical_response and args.collection_type=="cast":
         if args.first_stage_ranker == "bm25":
             doc_fetcher = searcher
         else:
