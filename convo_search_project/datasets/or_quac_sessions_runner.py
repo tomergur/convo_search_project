@@ -2,9 +2,9 @@ import json
 import time
 from .utils import write_run
 class ORQuacSessionRunner:
-    def __init__(self,pipeline,doc_fetcher):
+    def __init__(self,pipeline,add_canonical_rsp):
         self.pipeline=pipeline
-        self.doc_fetcher=doc_fetcher
+        self.add_canonical_rsp=add_canonical_rsp
     def run_sessions(self,args):
         input_queries_file = args.input_queries_file
         query_field = "rewrite" if args.use_manual_run else "question"
@@ -20,19 +20,17 @@ class ORQuacSessionRunner:
                 qid = conversation["qid"]
                 print(i,qid,conversation_num,tid, query)
                 history=[t["question"] for t in conversation["history"]]
+                canonical_response=None
+                if self.add_canonical_rsp:
+                    canonical_response=[t["answer"]["text"] for t in conversation["history"]] if len(conversation["history"])>0 else None
                 if args.log_queries:
                     run_res, query_dict = self.pipeline.retrieve(query, history=history,
-                                                            qid=qid,tid=tid)
+                                                            qid=qid,tid=tid,canonical_rsp=canonical_response)
                     queries_dict[qid] = query_dict
                 else:
-                    run_res = self.pipeline.retrieve(query, history=history, qid=qid,tid=tid)
+                    run_res = self.pipeline.retrieve(query, history=history, qid=qid,tid=tid,canonical_rsp=canonical_response)
                 write_run(f_out,qid,run_res)
-                #TODO: add or remove canonical response
-                '''
-                if self.doc_fetcher:
-                    rsp_doc = self.doc_fetcher.doc(conversations["manual_canonical_result_id"])
-                    canonical_response.append(rsp_doc.raw())
-                '''
+
                 if args.log_lists:
                     runs[qid] = run_res
                 print("query {} runtime is:{} sec".format(qid, time.time() - query_start_time))

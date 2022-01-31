@@ -276,5 +276,5 @@ if __name__ == "__main__":
     if args.collection_type=="cast":
         session_runner=CastSessionRunner(pipeline, doc_fetcher)
     else:
-        session_runner=ORQuacSessionRunner(pipeline, doc_fetcher)
+        session_runner=ORQuacSessionRunner(pipeline,args.add_canonical_response)
     run_exp(args,session_runner)
