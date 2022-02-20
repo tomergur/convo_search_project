@@ -51,6 +51,7 @@ class DataArguments:
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_exp_doc_5/*.tfrecords"
     model_name_or_path: str="castorini/monobert-large-msmarco-finetune-only"
     checkpoint_dir: str =None
+    backup_dir: str=None
     from_pt:bool= False
     early_stop:bool =False
 
@@ -73,21 +74,21 @@ if __name__ == "__main__":
                       metrics=metrics)
         if training_args.do_train:
             train_dataset = create_dataset(data_args.train_files, training_args.train_batch_size,training_args.max_steps)
-            valid_dataset =create_dataset(data_args.valid_files, training_args.eval_batch_size,training_args.max_steps)
+            valid_dataset =create_dataset(data_args.valid_files, training_args.eval_batch_size,training_args.eval_steps)
             callbacks = []
             tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
             if data_args.early_stop:
                 callbacks.append(tf.keras.callbacks.EarlyStopping(monitor="val_loss",restore_best_weights=True))
+            if data_args.backup_dir:
+                model_backup_callback=tf.keras.callbacks.experimental.BackupAndRestore(backup_dir=data_args.backup_dir)
+                callbacks.append(model_backup_callback)
             if data_args.checkpoint_dir:
-                checkpoint_filepath=data_args.checkpoint_dir+"/weights_{epoch}.h5"
-                #model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_filepath,save_weights_only=True)
-                #model_checkpoint_callback=WeightCheckpointCallback(checkpoint_filepath,training_args.save_steps,data_args.checkpoint_step)
-                model_checkpoint_callback=tf.keras.callbacks.experimental.BackupAndRestore(backup_dir=data_args.checkpoint_dir)
-
+                model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=data_args.checkpoint_dir,monitor='val_loss',save_best_only=True,save_weights_only=True)
                 callbacks.append(model_checkpoint_callback)
             history = model.fit(train_dataset, epochs=int(training_args.num_train_epochs),validation_data=valid_dataset, verbose=1,callbacks=callbacks)
             print(history.history)
-
+            if data_args.checkpoint_dir:
+                model.load_weights(data_args.checkpoint_dir)
             tokenizer.save_pretrained(training_args.output_dir)
             model.save_pretrained(training_args.output_dir)
         if training_args.do_eval:
