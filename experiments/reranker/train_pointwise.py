@@ -40,7 +40,7 @@ def create_dataset(files_path, batch_size,max_steps=-1):
 
 
 def create_model(model_name,from_pt):
-    model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=from_pt)
+    model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=from_pt, num_labels=2)
     return model
 
 
