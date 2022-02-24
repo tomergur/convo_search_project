@@ -86,7 +86,7 @@ if __name__ == "__main__":
                 model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=data_args.checkpoint_dir,
                                                                                monitor='val_loss',
                                                                                save_best_only=data_args.save_best_only,
-                                                                               save_weights_only=True,save_weights_only=True)
+                                                                               save_weights_only=True)
                 callbacks.append(model_checkpoint_callback)
             history = model.fit(train_dataset, epochs=int(training_args.num_train_epochs),
                                 validation_data=valid_dataset, verbose=1, callbacks=callbacks)
