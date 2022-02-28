@@ -17,6 +17,6 @@ if __name__=="__main__":
     for checkpoint_dir in checkpoints_dirs:
         checkpoint_num=checkpoint_dir.split("checkpoint")[1]
         print(checkpoint_num)
-        model.load_weights(checkpoint_dir)
+        model.load_weights(checkpoint_dir+"/")
 
 
