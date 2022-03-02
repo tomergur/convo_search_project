@@ -30,7 +30,24 @@ def create_dataset(files_path, batch_size, max_steps=-1):
     parsed_train_dataset = raw_train_data.map(_parse_function, num_parallel_calls=tf.data.AUTOTUNE)
     train_dataset = parsed_train_dataset.shuffle(buffer_size=1000)
     if max_steps > -1:
-        max_train_size = training_args.max_steps * batch_size
+        max_train_size = max_steps * batch_size
+        print("number of train samples:", max_train_size)
+        train_dataset = train_dataset.take(max_train_size)
+    return train_dataset.batch(batch_size)
+
+
+def create_dataset_interleaved(files_paths, batch_size, max_steps=-1, block_length=8):
+    dataset_files = []
+    for files_path in files_paths:
+        dataset_files = dataset_files + tf.io.gfile.glob(files_path)
+    files_ds = tf.data.Dataset.from_tensor_slices(dataset_files)
+    parsed_train_dataset = files_ds.interleave(map_func=lambda x: tf.data.TFRecordDataset(x).map(_parse_function),
+                                                      num_parallel_calls=tf.data.AUTOTUNE,
+                                                      cycle_length=len(dataset_files), block_length=block_length)
+    # train_dataset = parsed_train_dataset.shuffle(buffer_size=1000)
+    train_dataset = parsed_train_dataset
+    if max_steps > -1:
+        max_train_size = max_steps * batch_size
         print("number of train samples:", max_train_size)
         train_dataset = train_dataset.take(max_train_size)
     return train_dataset.batch(batch_size)
@@ -43,8 +60,9 @@ def create_model(model_name, from_pt):
 
 @dataclass
 class DataArguments:
-    train_files: str = "/v/tomergur/convo/reranking/quac_train_t5/*.tfrecords"
-    valid_files: str = "/v/tomergur/convo/reranking/quac_dev_t5/*.tfrecords"
+    train_files: str = "/v/tomergur/convo/reranking/qrecc_train_all/*.tfrecords"
+    sup_train_files: str = None
+    valid_files: str = "/v/tomergur/convo/reranking/qrecc_dev_all/*.tfrecords"
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_exp_doc_5/*.tfrecords"
     model_name_or_path: str = "castorini/monobert-large-msmarco-finetune-only"
     checkpoint_dir: str = None
@@ -71,7 +89,9 @@ if __name__ == "__main__":
                       metrics=metrics)
         if training_args.do_train:
             train_dataset = create_dataset(data_args.train_files, training_args.train_batch_size,
-                                           training_args.max_steps)
+                                           training_args.max_steps) if data_args.sup_train_files is None else create_dataset_interleaved(
+                [data_args.train_files, data_args.sup_train_files], training_args.train_batch_size,
+                training_args.max_steps)
             valid_dataset = create_dataset(data_args.valid_files, training_args.eval_batch_size,
                                            training_args.eval_steps)
             callbacks = []
