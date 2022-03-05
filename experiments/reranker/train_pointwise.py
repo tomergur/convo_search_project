@@ -66,7 +66,7 @@ class DataArguments:
     valid_files: str = "/v/tomergur/convo/reranking/qrecc_dev_all/*.tfrecords"
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_exp_doc_5/*.tfrecords"
     model_name_or_path: str = "castorini/monobert-large-msmarco-finetune-only"
-    info_dir="/v/tomergur/convo/reranking/models/exprs/"
+    info_dir:str ="/v/tomergur/convo/reranking/models/exprs/"
     checkpoint_dir: str = None
     save_best_only: bool = False
     backup_dir: str = None
