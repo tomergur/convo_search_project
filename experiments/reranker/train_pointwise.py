@@ -40,6 +40,7 @@ def create_dataset_interleaved(files_paths, batch_size, max_steps=-1, block_leng
     dataset_files = []
     for files_path in files_paths:
         dataset_files = dataset_files + tf.io.gfile.glob(files_path)
+    print(dataset_files)
     files_ds = tf.data.Dataset.from_tensor_slices(dataset_files)
     parsed_train_dataset = files_ds.interleave(map_func=lambda x: tf.data.TFRecordDataset(x).map(_parse_function),
                                                       num_parallel_calls=tf.data.AUTOTUNE,
@@ -65,6 +66,7 @@ class DataArguments:
     valid_files: str = "/v/tomergur/convo/reranking/qrecc_dev_all/*.tfrecords"
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_exp_doc_5/*.tfrecords"
     model_name_or_path: str = "castorini/monobert-large-msmarco-finetune-only"
+    info_dir="/v/tomergur/convo/reranking/models/exprs/"
     checkpoint_dir: str = None
     save_best_only: bool = False
     backup_dir: str = None
@@ -78,8 +80,18 @@ if __name__ == "__main__":
     # Create a description of the features.
     model_name_or_path = data_args.model_name_or_path
     # model_name="bert-base-uncased"
+    run_name=training_args.run_name.split("/")[-2] if "/" in training_args.run_name else training_args.run_name
     if not os.path.exists(training_args.output_dir):
         os.mkdir(training_args.output_dir)
+    if data_args.info_dir and not os.path.exists(data_args.info_dir):
+        os.mkdir(data_args.info_dir)
+    info_expr_dir="{}/{}".format(data_args.info_dir,run_name)
+    if not os.path.exists(info_expr_dir):
+        os.mkdir(info_expr_dir)
+    with open("{}/{}".format(info_expr_dir,"training_args.json"),'w') as f:
+        json.dump({k:v for k,v in training_args.__dict__.items() if isinstance(v,int) or isinstance(v,str)},f,indent=True)
+    with open("{}/{}".format(info_expr_dir,"data_args.json"),'w') as f:
+        json.dump(data_args.__dict__,f,indent=True)
     with training_args.strategy.scope():
         model = create_model(model_name_or_path, data_args.from_pt)
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
@@ -111,6 +123,8 @@ if __name__ == "__main__":
             history = model.fit(train_dataset, epochs=int(training_args.num_train_epochs),
                                 validation_data=valid_dataset, verbose=1, callbacks=callbacks)
             print(history.history)
+            with open("{}/{}".format(info_expr_dir, "history.json"),'w') as f:
+                json.dump(history.history, f,indent=True)
             if data_args.checkpoint_dir and data_args.save_best_only:
                 model.load_weights(data_args.checkpoint_dir)
             tokenizer.save_pretrained(training_args.output_dir)
