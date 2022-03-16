@@ -6,6 +6,7 @@ import json
 import os
 
 from experiments.reranker.consistency_trainer import ConsistencyTrainer
+
 FEATURE_DESC = {
     'input_ids': tf.io.FixedLenFeature([512], tf.int64),
     'attention_mask': tf.io.FixedLenFeature([512], tf.int64),
@@ -56,7 +57,7 @@ def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_funct
     raw_train_data = tf.data.TFRecordDataset(dataset_files, num_parallel_reads=None)
     parsed_train_dataset = raw_train_data.map(parse_func, num_parallel_calls=tf.data.AUTOTUNE)
     train_dataset = parsed_train_dataset.shuffle(buffer_size=1000)
-    #train_dataset = parsed_train_dataset
+    # train_dataset = parsed_train_dataset
     if max_steps > -1:
         max_train_size = max_steps * batch_size
         print("number of train samples:", max_train_size)
@@ -86,7 +87,9 @@ def create_model(model_name, data_args):
     model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt, num_labels=2)
     if data_args.consistency_loss_weight == 0:
         return model
-    return ConsistencyTrainer(model)
+    teacher = None if data_args.manual_loss_weight > 0 else TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt,
+                                                                   num_labels=2)
+    return ConsistencyTrainer(model, teacher)
 
 
 @dataclass
@@ -102,6 +105,8 @@ class DataArguments:
     backup_dir: str = None
     from_pt: bool = False
     consistency_loss_weight: float = 0
+    manual_loss_weight: float = 0
+    use_teacher: bool = False
     early_stop: bool = False
 
 
@@ -124,24 +129,30 @@ if __name__ == "__main__":
                   indent=True)
     with open("{}/{}".format(info_expr_dir, "data_args.json"), 'w') as f:
         json.dump(data_args.__dict__, f, indent=True)
-    use_pair_inputs=data_args.consistency_loss_weight>0
+    use_pair_inputs = data_args.consistency_loss_weight > 0
     with training_args.strategy.scope():
         model = create_model(model_name_or_path, data_args)
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         metrics = ['accuracy']
         # metrics = metrics
         if use_pair_inputs:
-            loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True,reduction=tf.keras.losses.Reduction.SUM)
-            consistency_loss=tf.keras.losses.KLDivergence(reduction=tf.keras.losses.Reduction.SUM)
+            loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True,
+                                                                 reduction=tf.keras.losses.Reduction.SUM)
+            consistency_loss = tf.keras.losses.KLDivergence(reduction=tf.keras.losses.Reduction.SUM)
             model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=training_args.learning_rate), loss=loss,
-                          metrics=metrics,consistency_loss=consistency_loss,consistency_loss_weight=data_args.consistency_loss_weight,global_batch_size=training_args.train_batch_size)
+                          metrics=metrics, consistency_loss=consistency_loss,
+                          consistency_loss_weight=data_args.consistency_loss_weight,
+                          manual_loss_weight=data_args.manual_loss_weight,
+                          global_batch_size=training_args.train_batch_size,
+                          global_eval_batch_size=training_args.eval_batch_size)
         else:
             model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=training_args.learning_rate), loss=loss,
-                      metrics=metrics)
+                          metrics=metrics)
         if training_args.do_train:
-            parse_func=_parse_pair_function if use_pair_inputs else _parse_function
+            parse_func = _parse_pair_function if use_pair_inputs else _parse_function
             train_dataset = create_dataset(data_args.train_files, training_args.train_batch_size,
-                                           training_args.max_steps,parse_func) if data_args.sup_train_files is None else create_dataset_interleaved(
+                                           training_args.max_steps,
+                                           parse_func) if data_args.sup_train_files is None else create_dataset_interleaved(
                 [data_args.train_files, data_args.sup_train_files], training_args.train_batch_size,
                 training_args.max_steps)
             valid_dataset = create_dataset(data_args.valid_files, training_args.eval_batch_size,
