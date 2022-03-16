@@ -2,24 +2,33 @@ import tensorflow as tf
 
 
 class ConsistencyTrainer(tf.keras.Model):
-    def __init__(self, model,teacher=None):
+    def __init__(self, model, teacher=None):
         super(ConsistencyTrainer, self).__init__()
         self.model = model
-        self.teacher=model if teacher is None else teacher
+        self.teacher = model if teacher is None else teacher
 
-    def save_pretrained(self,path):
+    def save_pretrained(self, path):
         self.model.save_pretrained(path)
+
+    def save_weights(self,filepath, overwrite=True, save_format=None, options=None):
+        self.model.save_weights(filepath,overwrite=overwrite,save_format=save_format,options=options)
+    def save(self, filepath, overwrite=True, include_optimizer=True, save_format=None,
+             signatures=None, options=None, save_traces=True):
+        self.model.save(filepath, overwrite=overwrite, include_optimizer=include_optimizer, save_format=save_format,
+                        signatures=signatures,options=options,save_traces=save_traces )
+
     def compile(
-            self, optimizer, metrics, loss, consistency_loss, consistency_loss_weight,manual_loss_weight, temperature=1,
-    global_batch_size=128,global_eval_batch_size=256):
+            self, optimizer, metrics, loss, consistency_loss, consistency_loss_weight, manual_loss_weight,
+            temperature=1,
+            global_batch_size=128, global_eval_batch_size=256):
         super(ConsistencyTrainer, self).compile(optimizer=optimizer, metrics=metrics)
         self.student_loss_fn = loss
         self.distillation_loss_fn = consistency_loss
         self.temperature = temperature
         self.cosistency_loss_weight = consistency_loss_weight
-        self.manual_loss_weight=manual_loss_weight
-        self.global_batch_size=global_batch_size
-        self.global_eval_batch_size=global_eval_batch_size
+        self.manual_loss_weight = manual_loss_weight
+        self.global_batch_size = global_batch_size
+        self.global_eval_batch_size = global_eval_batch_size
 
     def train_step(self, data):
         # Since our dataset is a zip of two independent datasets,
@@ -32,20 +41,21 @@ class ConsistencyTrainer(tf.keras.Model):
                       "token_type_ids": inputs["token_type_ids"]}
 
         # Forward pass of teacher
-        calc_manual_grad=self.manual_loss_weight>0
+        calc_manual_grad = self.manual_loss_weight > 0
         with tf.GradientTape() as tape:
             # Forward pass of student
             teacher_predictions = self.teacher(**cosist_inputs, training=calc_manual_grad).logits
             model_predictions = self.model(**raw_inputs, training=True).logits
             # Compute losses
-            loss = self.student_loss_fn(labels, model_predictions)*(1./self.global_batch_size)
-            teacher_loss=self.student_loss_fn(labels, teacher_predictions)*(1./self.global_batch_size)
-            consistency_predictions=tf.identity(teacher_predictions)
+            loss = self.student_loss_fn(labels, model_predictions) * (1. / self.global_batch_size)
+            teacher_loss = self.student_loss_fn(labels, teacher_predictions) * (1. / self.global_batch_size)
+            consistency_predictions = tf.identity(teacher_predictions)
             consistency_loss = self.distillation_loss_fn(
                 tf.nn.softmax(model_predictions / self.temperature, axis=1),
                 tf.nn.softmax(consistency_predictions / self.temperature, axis=1),
-            )*(1./self.global_batch_size)
-            total_loss = (loss + self.cosistency_loss_weight * consistency_loss+self.manual_loss_weight*teacher_loss)
+            ) * (1. / self.global_batch_size)
+            total_loss = (
+                        loss + self.cosistency_loss_weight * consistency_loss + self.manual_loss_weight * teacher_loss)
 
         # Compute gradients
         trainable_vars = self.model.trainable_variables
@@ -67,7 +77,6 @@ class ConsistencyTrainer(tf.keras.Model):
         results.update({"total_loss": total_loss})
         return results
 
-
     def test_step(self, data):
         # During inference, we only pass a dataset consisting images and labels.
         x, y = data
@@ -76,9 +85,9 @@ class ConsistencyTrainer(tf.keras.Model):
         y_prediction = self.model(**x, training=False)
 
         # Update the metrics
-        model_pred=tf.nn.softmax(y_prediction.logits, axis=1)
+        model_pred = tf.nn.softmax(y_prediction.logits, axis=1)
 
-        self.compiled_metrics.update_state(y,model_pred )
+        self.compiled_metrics.update_state(y, model_pred)
         loss = self.student_loss_fn(y, model_pred) * (1. / self.global_eval_batch_size)
         # Return a dict of performance
         results = {m.name: m.result() for m in self.metrics}
