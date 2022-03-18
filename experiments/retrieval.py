@@ -8,7 +8,7 @@ import os
 from convo_search_project.pipeline import Pipeline
 from convo_search_project.rerankers import BertReranker,Bm25Reranker
 from convo_search_project.rerankers import JaacardReranker
-from convo_search_project.datasets import CastSessionRunner,ORQuacSessionRunner
+from convo_search_project.datasets import CastSessionRunner,ORQuacSessionRunner,QreccSessionRunner
 from convo_search_project.runs_cache import RunsCache
 from convo_search_project.doc_modify import modify_to_all_queries,modify_to_single_queries,modify_to_append_all_queries
 # TODO: delete
@@ -64,6 +64,7 @@ def parse_args():
     parser.add_argument('--T5_rewriter_sliding_window_fusion', action='store_true',
                         help='use sliding window fusion mode')
     parser.add_argument('--T5_append_history',action='store_true')
+    parser.add_argument('--T5_use_sampling',action='store_true')
     # file rewriter
     parser.add_argument('--queries_rewrites_path', help='path to query rewrites cached in csv')
 
@@ -188,9 +189,11 @@ def run_exp(args, session_runner):
         output_queries_file(queries_output_file, queries_dict)
 
 def collection_type_to_searcher(collection_type):
-    if collection_type=="cast":
+    if "cast" in collection_type:
         return SimpleSearcher.from_prebuilt_index("cast2019")
     #TODO: remove or_quac constant location
+    if collection_type=="qrecc":
+        return SimpleSearcher("/v/tomergur/convo/indexes/qrecc")
     return SimpleSearcher("/v/tomergur/convo/indexes/or_quac")
 
 if __name__ == "__main__":
@@ -275,6 +278,8 @@ if __name__ == "__main__":
                         hits_to_text_func)
     if args.collection_type=="cast":
         session_runner=CastSessionRunner(pipeline, doc_fetcher)
+    elif args.collection_type=="qrecc" or args.collection_type=="qrecc_cast":
+        session_runner=QreccSessionRunner(pipeline, doc_fetcher)
     else:
         session_runner=ORQuacSessionRunner(pipeline,args.add_canonical_response)
     run_exp(args,session_runner)
