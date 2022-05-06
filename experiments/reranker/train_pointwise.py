@@ -57,7 +57,7 @@ def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_funct
     raw_train_data = tf.data.TFRecordDataset(dataset_files, num_parallel_reads=None)
     parsed_train_dataset = raw_train_data.map(parse_func, num_parallel_calls=tf.data.AUTOTUNE)
     train_dataset = parsed_train_dataset.shuffle(buffer_size=1000)
-    # train_dataset = parsed_train_dataset
+    #train_dataset = parsed_train_dataset
     if max_steps > -1:
         max_train_size = max_steps * batch_size
         print("number of train samples:", max_train_size)
@@ -87,7 +87,7 @@ def create_model(model_name, data_args):
     model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt, num_labels=2)
     if data_args.consistency_loss_weight == 0:
         return model
-    teacher = None if data_args.manual_loss_weight > 0 else TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt,
+    teacher = None if data_args.manual_loss_weight > 0 or data_args.use_const_loss else TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt,
                                                                    num_labels=2)
     return ConsistencyTrainer(model, teacher)
 
@@ -108,6 +108,7 @@ class DataArguments:
     manual_loss_weight: float = 0
     use_teacher: bool = False
     early_stop: bool = False
+    use_const_loss:bool = False
 
 
 if __name__ == "__main__":
