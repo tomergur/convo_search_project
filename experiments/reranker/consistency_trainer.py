@@ -44,9 +44,9 @@ class ConsistencyTrainer(tf.keras.Model):
 
         # Forward pass of teacher
         calc_manual_grad = self.manual_loss_weight > 0
+        teacher_predictions = self.teacher(**cosist_inputs, training=calc_manual_grad).logits
         with tf.GradientTape() as tape:
             # Forward pass of student
-            teacher_predictions = self.teacher(**cosist_inputs, training=calc_manual_grad).logits
             model_predictions = self.model(**raw_inputs, training=True).logits
             # Compute losses
             loss = self.student_loss_fn(labels, model_predictions) * (1. / self.global_batch_size)
