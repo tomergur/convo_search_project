@@ -12,6 +12,8 @@ class ConsistencyTrainer(tf.keras.Model):
 
     def save_weights(self,filepath, overwrite=True, save_format=None, options=None):
         self.model.save_weights(filepath,overwrite=overwrite,save_format=save_format,options=options)
+
+
     def save(self, filepath, overwrite=True, include_optimizer=True, save_format=None,
              signatures=None, options=None, save_traces=True):
         self.model.save(filepath, overwrite=overwrite, include_optimizer=include_optimizer, save_format=save_format,
@@ -55,7 +57,9 @@ class ConsistencyTrainer(tf.keras.Model):
                 tf.nn.softmax(consistency_predictions / self.temperature, axis=1),
             ) * (1. / self.global_batch_size)
             total_loss = (
-                        loss + self.cosistency_loss_weight * consistency_loss + self.manual_loss_weight * teacher_loss)
+                        loss + self.cosistency_loss_weight * consistency_loss)
+            if calc_manual_grad:
+                total_loss+=self.manual_loss_weight * teacher_loss
 
         # Compute gradients
         trainable_vars = self.model.trainable_variables
