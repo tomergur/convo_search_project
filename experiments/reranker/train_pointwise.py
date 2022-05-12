@@ -62,7 +62,7 @@ def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_funct
         max_train_size = max_steps * batch_size
         print("number of train samples:", max_train_size)
         train_dataset = train_dataset.take(max_train_size)
-    return train_dataset.batch(batch_size).prefetch(2)
+    return train_dataset.batch(batch_size)
 
 
 def create_dataset_interleaved(files_paths, batch_size, max_steps=-1, block_length=8):
