@@ -51,6 +51,23 @@ class BertReranker(Reranker):
                       *args, **kwargs) -> AutoTokenizer:
         return AutoTokenizer.from_pretrained(pretrained_model_name_or_path, use_fast=True, *args, **kwargs)
 
+
+    def truncate_query(self,query,max_length=128):
+        q_tokens = self.tokenizer(query)
+        q_len = len(q_tokens['input_ids'])
+        if max_length >= q_len:
+            return query
+        query_turns = query.split("[SEP]")
+        for i in range(1, len(query_turns)):
+            truncated_query = "[SEP]".join(query_turns[i:])
+            q_tokens = self.tokenizer(truncated_query)
+            q_len = len(q_tokens['input_ids'])
+            if max_length >= q_len:
+                print("truncated q:", truncated_query)
+                return truncated_query
+        assert (False)
+        return query
+
     def _rerank_keras(self, query: Query, texts: List[Text]) -> List[Text]:
         # print(tf.config.list_physical_devices('GPU'))
         data_prerpare_time = time.perf_counter()
@@ -66,7 +83,8 @@ class BertReranker(Reranker):
                                                                    return_token_type_ids=True, return_tensors='tf'))
         pairs_ds = pairs_ds.map(lambda x: (x['input_ids'], x['attention_mask'], x['token_type_ids']))
         '''
-        ret = self.tokenizer([query.text] * len(texts),
+        query_text=self.truncate_query(query.text)
+        ret = self.tokenizer([query_text] * len(texts),
                              [text.text for text in texts], max_length=512,
                              truncation=True, padding="max_length", return_token_type_ids=True, return_tensors='tf')
         #input_ids = tf.data.Dataset.from_tensor_slices(ret['input_ids'])

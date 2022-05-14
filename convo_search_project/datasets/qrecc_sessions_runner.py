@@ -24,7 +24,6 @@ class QreccSessionRunner:
                 if tid==1:
                     history=[]
                     canonical_response = [] if self.add_canonical_rsp else None
-                canonical_response=None
                 if args.log_queries:
                     run_res, query_dict = self.pipeline.retrieve(query, history=history,
                                                             qid=qid,tid=tid,canonical_rsp=canonical_response)
