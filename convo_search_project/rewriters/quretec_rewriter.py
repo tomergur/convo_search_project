@@ -91,10 +91,11 @@ class Ner(BertForTokenClassification):
 
 
 class QuReTeCRewriter():
-    def __init__(self, model_path):
+    def __init__(self, model_path,use_sep_token=True):
         self.model = Ner.from_pretrained(model_path).eval()
         self.tokenizer = BertTokenizer.from_pretrained(model_path, do_lower_case=True)
         self.eng = English()
+        self.sep_token=" [SEP] " if use_sep_token else " "
 
     def rewrite(self, query, **ctx):
         if len(ctx['history']) == 0:
@@ -122,4 +123,4 @@ class QuReTeCRewriter():
                 post_processed_tokens[-1] += t.replace("##", '')
         tokens_to_add = [t for t, p in zip(post_processed_tokens, pred.reshape(-1).numpy()) if p == 2]
         print("token to add:", set(tokens_to_add))
-        return query + " " + " ".join(set(tokens_to_add))
+        return query + self.sep_token + " ".join(set(tokens_to_add)) if len(tokens_to_add)>0 else query

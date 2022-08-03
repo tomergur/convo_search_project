@@ -11,12 +11,14 @@ from pyserini.search import SimpleSearcher
 
 
 def _create_all_hisotry_rewriter(args):
-    sep_token=" [SEP] " if 'use_sep_token' in args else ' '
+    sep_token = " [SEP] " if 'use_sep_token' in args and args.use_sep_token else ' '
     return AllHistoryRewriter(sep_token)
 
 
 def _create_prev_utter_rewriter(args):
-    return PrevUtteranceRewriter(args.prev_turns) if 'prev_turns' in args else PrevUtteranceRewriter()
+    return PrevUtteranceRewriter(args.prev_turns,
+                                 args.use_sep_token) if 'prev_turns' in args else PrevUtteranceRewriter(
+        use_sep_token=args.use_sep_token)
 
 
 def _create_separate_turns_rewriter(args):
@@ -24,17 +26,17 @@ def _create_separate_turns_rewriter(args):
 
 
 def _create_quretec_rewriter(args):
-    return QuReTeCRewriter(args.quretec_model_path)
+    return QuReTeCRewriter(args.quretec_model_path, args.use_sep_token)
 
 
 def _create_t5_rewriter(args):
     context_window = args.T5_rewriter_context_window if 'T5_rewriter_context_window' in args else None
     selected_query_rank = args.T5_rewriter_selected_query_rank if 'T5_rewriter_selected_query_rank' in args else 1
     sliding_window_fusion = args.T5_rewriter_sliding_window_fusion if 'T5_rewriter_sliding_window_fusion' in args else False
-    append_history=args.T5_append_history if 'T5_append_history' in args else False
+    append_history = args.T5_append_history if 'T5_append_history' in args else False
     t5_rewriter = T5Rewriter(model_str=args.T5_model_str, num_queries_generated=args.T5_num_queries_generated,
                              context_window=context_window, selected_query_rank=selected_query_rank,
-                             sliding_window_fusion=sliding_window_fusion,append_history=append_history)
+                             sliding_window_fusion=sliding_window_fusion, append_history=append_history)
     return t5_rewriter
 
 
@@ -43,21 +45,23 @@ def _create_file_rewriter(args):
 
 
 def _create_first_turn_rewriter(args):
-    return FirstUtteranceRewriter()
+    return FirstUtteranceRewriter(args.use_sep_token)
 
 
 def _create_hqe_rewriter(args):
     searcher = SimpleSearcher.from_prebuilt_index("cast2019")
     searcher.set_bm25(args.k1, args.b)
-    return HqeRewriter(searcher)
+    return HqeRewriter(searcher, args.use_sep_token)
+
 
 def _create_prev_and_first_rewriter(args):
     return PrevAndFirstUtteranceRewriter()
 
+
 REWRITER_BUILDERS = {'all_turns': _create_all_hisotry_rewriter, 'prev_turn': _create_prev_utter_rewriter,
                      'separate_turns': _create_separate_turns_rewriter, 'quretec': _create_quretec_rewriter,
                      't5': _create_t5_rewriter, 'file': _create_file_rewriter, 'hqe': _create_hqe_rewriter,
-                     'first_turn': _create_first_turn_rewriter,'prev_and_first_turn':_create_prev_and_first_rewriter}
+                     'first_turn': _create_first_turn_rewriter, 'prev_and_first_turn': _create_prev_and_first_rewriter}
 
 
 def create_rewriter(name, args):
