@@ -65,6 +65,14 @@ class BertReranker(Reranker):
             if max_length >= q_len:
                 print("truncated q:", truncated_query)
                 return truncated_query
+        query_words = query.split(" ")
+        for i in range(1, len(query_words)):
+            truncated_query = "[SEP]".join(query_words[i:])
+            q_tokens = self.tokenizer(truncated_query)
+            q_len = len(q_tokens['input_ids'])
+            if max_length >= q_len:
+                print("truncated q:", truncated_query)
+                return truncated_query
         assert (False)
         return query
 
