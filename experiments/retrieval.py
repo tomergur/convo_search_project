@@ -8,7 +8,7 @@ import os
 from convo_search_project.pipeline import Pipeline
 from convo_search_project.rerankers import BertReranker,Bm25Reranker
 from convo_search_project.rerankers import JaacardReranker
-from convo_search_project.datasets import CastSessionRunner,ORQuacSessionRunner,QreccSessionRunner
+from convo_search_project.datasets import CastSessionRunner,ORQuacSessionRunner,QreccSessionRunner,TopioCQASessionsRunner
 from convo_search_project.runs_cache import RunsCache
 from convo_search_project.doc_modify import modify_to_all_queries,modify_to_single_queries,modify_to_append_all_queries
 # TODO: delete
@@ -41,6 +41,9 @@ def parse_args():
     parser.add_argument('--k1', type=float, default=0.82, help='BM25 k1 parameter')
     parser.add_argument('--b', type=float, default=0.68, help='BM25 b parameter')
 
+    #parmeters for kld
+    parser.add_argument("--mu",type=int,default=1000)
+
     # parameters for cached first stage retreival
     parser.add_argument("--first_stage_cache_path", help="the path to the first stage cache file/s")
 
@@ -64,12 +67,11 @@ def parse_args():
     parser.add_argument('--T5_rewriter_sliding_window_fusion', action='store_true',
                         help='use sliding window fusion mode')
     parser.add_argument('--T5_append_history',action='store_true')
-    parser.add_argument('--T5_use_sampling',action='store_true')
     # file rewriter
     parser.add_argument('--queries_rewrites_path', help='path to query rewrites cached in csv')
 
     #use [SEP] token for each turn
-    parser.add_argument('--use_sep_token',action='store_true')
+    parser.add_argument('--use_sep_token',action='store_true',default=False)
     # prev turns rewriter
     parser.add_argument('--prev_turns', type=int)
 
@@ -194,6 +196,8 @@ def collection_type_to_searcher(collection_type):
     #TODO: remove or_quac constant location
     if collection_type=="qrecc":
         return SimpleSearcher("/v/tomergur/convo/indexes/qrecc")
+    if collection_type=="topiocqa":
+        return SimpleSearcher("/v/tomergur/convo/indexes/topiocqa")
     return SimpleSearcher("/v/tomergur/convo/indexes/or_quac")
 
 if __name__ == "__main__":
@@ -231,6 +235,9 @@ if __name__ == "__main__":
     if args.first_stage_ranker == "bm25":
         searcher = collection_type_to_searcher(args.collection_type)
         searcher.set_bm25(k1, b)
+    if args.first_stage_ranker == "kld":
+        searcher = collection_type_to_searcher(args.collection_type)
+        searcher.set_qld(args.mu)
     elif args.first_stage_ranker == "cache":
         searcher = None
         initial_lists = RunsCache(args.first_stage_cache_path)
@@ -278,8 +285,10 @@ if __name__ == "__main__":
                         hits_to_text_func)
     if args.collection_type=="cast":
         session_runner=CastSessionRunner(pipeline, doc_fetcher)
+    elif args.collection_type=="topiocqa":
+        session_runner = TopioCQASessionsRunner(pipeline, args.add_canonical_response)
     elif args.collection_type=="qrecc" or args.collection_type=="qrecc_cast":
-        session_runner=QreccSessionRunner(pipeline, doc_fetcher)
+        session_runner=QreccSessionRunner(pipeline,args.add_canonical_response)
     else:
         session_runner=ORQuacSessionRunner(pipeline,args.add_canonical_response)
     run_exp(args,session_runner)
