@@ -6,7 +6,7 @@ from spacy.lang.en import English
 class T5Rewriter():
     def __init__(self, model_str, num_queries_generated=1, context_window=None, selected_query_rank=1, from_pt=True,
                  append_history=False, max_length=64, num_beams=10, sliding_window_fusion=False,
-                 early_stopping=True, rsp_context_type="type_b"):
+                 early_stopping=True, rsp_context_type="type_a"):
         self.model = TFT5ForConditionalGeneration.from_pretrained(model_str, from_pt=from_pt)
         self.tokenizer = T5Tokenizer.from_pretrained(model_str)
         self.max_length = max_length
@@ -38,7 +38,8 @@ class T5Rewriter():
                 merged_hist = []
                 for i in range(len(ctx['history'])):
                     merged_hist.append(history[i])
-                    merged_hist.append(ctx['canonical_rsp'][i])
+                    if ctx['canonical_rsp'][i] is not None:
+                        merged_hist.append(ctx['canonical_rsp'][i])
                 history = merged_hist
         return self._generate_queries(history, query, self.num_queries_generated)
 

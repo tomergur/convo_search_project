@@ -22,7 +22,7 @@ class ORQuacSessionRunner:
                 history=[t["question"] for t in conversation["history"]]
                 canonical_response=None
                 if self.add_canonical_rsp:
-                    canonical_response=[t["answer"]["text"] for t in conversation["history"]] if len(conversation["history"])>0 else None
+                    canonical_response=[t["answer"]["text"] if t["answer"]["text"]!="CANNOTANSWER" else None for t in conversation["history"]] if len(conversation["history"])>0 else None
                 if args.log_queries:
                     run_res, query_dict = self.pipeline.retrieve(query, history=history,
                                                             qid=qid,tid=tid,canonical_rsp=canonical_response)
