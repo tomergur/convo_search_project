@@ -102,6 +102,13 @@ class QuReTeCRewriter():
             return query
         hist = " ".join(ctx["history"])
         query_input = query
+        if 'canonical_rsp' in ctx and ctx['canonical_rsp'] is not None:
+            merged_hist = []
+            for i in range(len(ctx['history'])):
+                merged_hist.append(hist[i])
+                if ctx['canonical_rsp'][i] is not None:
+                    merged_hist.append(ctx['canonical_rsp'][i])
+            hist =" ".join(merged_hist)
         # hist=hist.replace(".",".?")
         # query_input=query_input.replace(".",".?")
         hist = " ".join([tok.text for tok in self.eng(hist)])
