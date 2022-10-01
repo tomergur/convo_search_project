@@ -8,7 +8,7 @@ import os
 from convo_search_project.pipeline import Pipeline
 from convo_search_project.rerankers import BertReranker,Bm25Reranker
 from convo_search_project.rerankers import JaacardReranker
-from convo_search_project.datasets import CastSessionRunner,ORQuacSessionRunner,QreccSessionRunner,TopioCQASessionsRunner
+from convo_search_project.datasets import CastSessionRunner,ORQuacSessionRunner,QreccSessionRunner,TopioCQASessionsRunner,RedditSessionRunner
 from convo_search_project.runs_cache import RunsCache
 from convo_search_project.doc_modify import modify_to_all_queries,modify_to_single_queries,modify_to_append_all_queries
 # TODO: delete
@@ -198,6 +198,8 @@ def collection_type_to_searcher(collection_type):
         return SimpleSearcher("/v/tomergur/convo/indexes/qrecc")
     if collection_type=="topiocqa":
         return SimpleSearcher("/v/tomergur/convo/indexes/topiocqa")
+    if collection_type == "reddit":
+        return SimpleSearcher("/v/tomergur/convo/indexes/reddit")
     return SimpleSearcher("/v/tomergur/convo/indexes/or_quac")
 
 if __name__ == "__main__":
@@ -287,6 +289,8 @@ if __name__ == "__main__":
         session_runner=CastSessionRunner(pipeline, doc_fetcher)
     elif args.collection_type=="topiocqa":
         session_runner = TopioCQASessionsRunner(pipeline, args.add_canonical_response)
+    elif args.collection_type=="reddit":
+        session_runner=RedditSessionRunner(pipeline)
     elif args.collection_type=="qrecc" or args.collection_type=="qrecc_cast":
         session_runner=QreccSessionRunner(pipeline,args.add_canonical_response)
     else:
