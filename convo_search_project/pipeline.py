@@ -33,6 +33,8 @@ class Pipeline():
         return rrf_res
 
     def rerank(self, query, res_list):
+        if len(res_list)==0:
+            return res_list
         reranked = self.reranker.rerank(Query(query), self.hits_to_texts(res_list))
         reranked_scores = [r.score for r in reranked]
         # Reorder hits with reranker scores
