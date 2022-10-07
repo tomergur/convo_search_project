@@ -4,14 +4,18 @@ import json
 import tensorflow as tf
 import pandas as pd
 from pyserini.search import SimpleSearcher
+import itertools
 
-
-def serialize_example(features, label):
+def serialize_example(features, labels):
+    input_ids=list(itertools.chain(*features["input_ids"]))
+    #print(len(input_ids))
+    attention_mask=list(itertools.chain(*features["attention_mask"]))
+    token_type_ids=list(itertools.chain(*features["token_type_ids"]))
     example = tf.train.Example(features=tf.train.Features(feature={
-        "input_ids": tf.train.Feature(int64_list=tf.train.Int64List(value=features["input_ids"])),
-        "attention_mask": tf.train.Feature(int64_list=tf.train.Int64List(value=features["attention_mask"])),
-        "token_type_ids": tf.train.Feature(int64_list=tf.train.Int64List(value=features["token_type_ids"])),
-        "labels": tf.train.Feature(float_list=tf.train.FloatList(value=[label])),
+        "input_ids": tf.train.Feature(int64_list=tf.train.Int64List(value=input_ids)),
+        "attention_mask": tf.train.Feature(int64_list=tf.train.Int64List(value=attention_mask)),
+        "token_type_ids": tf.train.Feature(int64_list=tf.train.Int64List(value=token_type_ids)),
+        "labels": tf.train.Feature(float_list=tf.train.FloatList(value=labels)),
     }))
     return example.SerializeToString()
 
@@ -21,18 +25,6 @@ def truncate_query(query, tokenizer, max_length=128):
     q_len = len(q_tokens['input_ids'])
     if max_length >= q_len:
         return query
-
-    '''
-    query_turns=query.split("[SEP]")
-    for i in range(1,len(query_turns)):
-        truncated_query="[SEP]".join(query_turns[i:])
-        q_tokens = tokenizer(truncated_query)
-        q_len = len(q_tokens['input_ids'])
-        if max_length >= q_len:
-            print("truncated q:",truncated_query)
-            return truncated_query
-    '''
-
     query_terms = query.split(" ")
     for i in range(1, len(query_terms)):
         truncated_query = " ".join(query_terms[i:])
@@ -45,14 +37,15 @@ def truncate_query(query, tokenizer, max_length=128):
     return ""
 
 
-def serialize_query_passage_pair(qid, query, passage, label, tokenizer, writer):
-    tokenized_row = tokenizer(query, passage, max_length=512, truncation=True, padding='max_length',
+def serialize_query_passage_pair(queries, passages, labels, tokenizer, writer):
+    tokenized_row = tokenizer(queries, passages, max_length=512, truncation=True, padding='max_length',
                               return_token_type_ids=True)
-    writer.write(serialize_example(tokenized_row, label))
+
+    writer.write(serialize_example(tokenized_row,labels))
 
 
-def serialize_dataset_row(qid, query, passage, label, tokenizer, writer):
-    serialize_query_passage_pair(qid, query, passage, label, tokenizer, writer)
+def serialize_dataset_row(queries, passages, labels, tokenizer, writer):
+    serialize_query_passage_pair(queries, passages, labels, tokenizer, writer)
 
 
 tokenizer_name = "bert-base-uncased"
@@ -61,6 +54,7 @@ QREL_PATH = "/lv_local/home/tomergur/convo_search_project/data/or_quac/qrels.txt
 RES_PATH = "/v/tomergur/convo/res"
 EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval"
 INDEXES_DIR = "/v/tomergur/convo/indexes"
+DEFAULT_LABEL=None
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_name', required=True,
@@ -91,13 +85,9 @@ if __name__ == "__main__":
     input_file = "{}/{}/{}/{}_queries.json".format(RES_PATH, setting_name, col, run_name)
     with open(input_file) as f:
         queries = json.load(f)
-    # TODO: this approach relies on having all queries existing,might be problematic
-    if append_history or append_prev_turns:
-        split_token = "#" if col == "or_quac" else "_"
-        first_tid = 0 if col == "or_quac" else 1
-        history_input_file = "{}/{}/{}/{}_queries.json".format(RES_PATH, setting_name, col, "all")
-        with open(history_input_file) as f:
-            history = json.load(f)
+
+    split_token = "#" if col == "or_quac" else "_"
+    first_tid = 0 if col == "or_quac" else 1
 
     run_file = "{}/{}/{}/{}_run.txt".format(RES_PATH, setting_name, col, run_name)
     runs = pd.read_csv(run_file, header=None, names=["qid", "Q0", "docid", "ranks", "score", "info"],
@@ -108,15 +98,17 @@ if __name__ == "__main__":
     eval_res = eval_res[eval_res.metric.str.startswith(metric)]
     print("eval res", eval_res.head())
     metrics_values = eval_res.set_index("qid").value.to_dict()
+    print("num labeled",len(metrics_values),"num queries:",len(queries))
     searcher = SimpleSearcher("{}/{}".format(INDEXES_DIR, col))
     # unique for bert qpp
     top_docs = runs[runs.ranks == 1].set_index("qid").docid.to_dict()
-    j = 0
+    data_to_tokenize={}
+    max_turn={}
     for i, (qid, query_json) in enumerate(queries.items()):
-        print(i, qid)
+        #print(i, qid)
         raw_query = query_json[query_field_name][0]
+        sid, tid = qid.split(split_token)
         if append_history or append_prev_turns:
-            sid, tid = qid.split(split_token)
             if int(tid) > first_tid:
                 hist = []
                 for i in range(first_tid, int(tid)):
@@ -128,16 +120,41 @@ if __name__ == "__main__":
                 # hist=history[last_turn_qid][query_field_name][0]
                 raw_query = " [SEP] ".join(hist + [raw_query])
         query = truncate_query(raw_query, tokenizer)
-        print(query)
+        ##print(query)
         if qid not in metrics_values:
+            print("not serilazing qid:",qid)
             continue
+        max_turn[sid] = max(int(tid), max_turn.get(sid, 0))
+        top_doc_id = top_docs[qid]
+        doc = searcher.doc(top_doc_id)
+        label = metrics_values.get(qid,DEFAULT_LABEL)
+        passage = json.loads(doc.raw())["contents"]
+        data_to_tokenize[qid]=(query,passage,label)
+    j = 0
+    for qid,(query,passage,label) in data_to_tokenize.items():
+        if label is None:
+            print("missing label")
+            continue
+        sid, tid = qid.split(split_token)
+        if int(tid)<max_turn.get(sid):
+            continue
+        if j%100==0:
+            print("num serialized:",j)
         if j % max_rows_per_file == 0:
             writer = tf.io.TFRecordWriter(output_path_format.format(file_idx))
             file_idx += 1
-        j += 1
-        top_doc_id = top_docs[qid]
-        doc = searcher.doc(top_doc_id)
-        label = metrics_values[qid]
-        passage = json.loads(doc.raw())["contents"]
-        # print(passage)
-        serialize_dataset_row(qid, query, passage, label, tokenizer, writer)
+        j+=1
+        queries=[]
+        passages=[]
+        labels=[]
+        for i in range(first_tid,int(tid)):
+            cur_turn_qid = sid + split_token + str(i)
+            if cur_turn_qid in data_to_tokenize:
+                cur_query,cur_psg,turn_label=data_to_tokenize[cur_turn_qid]
+                queries.append(cur_query)
+                passages.append(cur_psg)
+                labels.append(turn_label)
+        labels.append(label)
+        queries.append(query)
+        passages.append(passage)
+        serialize_dataset_row(queries, passages, labels, tokenizer, writer)

@@ -81,18 +81,19 @@ def create_ctx(runs, rewrites, turns_text, col="cast19"):
             q_ctx = {"res_list": method_res_list, "method": method_name, "turn_text": turns_text.get(qid)}
             sid, turn_id = qid.split("#") if col == "or_quac" else qid.split("_")
             prev_turns = []
-            for i in range(int(turn_id)):
-                hist_qid = "{}#{}".format(sid, i) if col == "or_quac" else "{}_{}".format(sid, i + 1)
-                if hist_qid not in method_res_lists:
-                    continue
-                prev_turns.append((method_rewrites[hist_qid],
-                                   {"res_list": method_res_lists[hist_qid], "qid": hist_qid, "method": method_name,
-                                    "turn_text": turns_text.get(hist_qid)}))
-            q_ctx["history"] = prev_turns
+            if col != "reddit":
+                for i in range(int(turn_id)):
+                    hist_qid = "{}#{}".format(sid, i) if col == "or_quac" else "{}_{}".format(sid, i + 1)
+                    if hist_qid not in method_res_lists:
+                        continue
+                    prev_turns.append((method_rewrites[hist_qid],
+                                       {"res_list": method_res_lists[hist_qid], "qid": hist_qid, "method": method_name,
+                                        "turn_text": turns_text.get(hist_qid)}))
+                q_ctx["history"] = prev_turns
 
             rewrites_ctx = []
             for ref_method in REWRITE_REF_LIST:
-                if ref_method == method_name:
+                if ref_method == method_name or qid not in res_lists[ref_method]:
                     continue
                 rewrites_ctx.append((rewrites[ref_method][qid],
                                      {"res_list": res_lists[ref_method][qid], "qid": qid, "method": ref_method,
@@ -186,9 +187,9 @@ def evaluate_topic_predictor(feature_values, labels, corr_type="pearson"):
 
 def topic_evaluate_extractor(extractor, rewrites, labels, ctx, return_raw_feature=False):
     feature_res = {qid: extractor.calc_qpp_feature(q, **ctx[qid]) for qid, q in
-                   rewrites.items()}
-    #corr = calc_topic_corr(feature_res, labels)
-    corr,_ = calc_topic_pairwise_acc(feature_res, labels)
+                   rewrites.items() if qid in ctx}
+    corr = calc_topic_corr(feature_res, labels)
+    #corr,_ = calc_topic_pairwise_acc(feature_res, labels)
     if return_raw_feature:
         return corr, feature_res
     return corr

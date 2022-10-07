@@ -1,0 +1,185 @@
+import argparse
+import json
+import os
+import time
+import numpy as np
+import pandas as pd
+
+from ..qpp_utils import create_label_dict,load_eval,calc_topic_corr,calc_topic_pairwise_acc,calc_topic_turn_corr,evaluate_topic_predictor
+from scipy.stats import pearsonr,kendalltau,spearmanr
+import matplotlib.pyplot as plt
+
+DEFAULT_COL='or_quac'
+DEFAULT_RES_DIR="rerank_kld_100"
+DEFAULT_QPP_RES_DIR="/lv_local/home/tomergur/convo_search_project/data/qpp/topic_comp/"
+DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG","NQC","clarity","bert_qpp","bert_qpp_or_quac"]
+DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm","clarity_norm","bert_qpp","bert_qpp_hist"]
+DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","WIG_norm","NQC_norm","clarity_norm"]
+'''
+DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm",
+                           "clarity_norm","bert_qpp_or_quac","bert_qpp_topiocqa","bert_qpp_hist_or_quac","bert_qpp_hist_topiocqa"]
+'''
+REWRITE_METHODS=['t5','all','hqe','quretec']
+#REWRITE_METHODS=['all','hqe']
+TWO_DIGITS_METRICS = ["PA","TPA"]
+QPP_EVAL_METRIC=["TPA","turn_pearson","turn_kendall"]
+QPP_EVAL_METRIC=["TPA","PA"]
+QPP_EVAL_METRIC=["sturn_0_pearson","sturn_5_pearson","sturn_10_pearson"]
+QPP_EVAL_METRIC=["pearson"]
+QPP_EVAL_METRIC=["pearson","kendall"]
+
+#QPP_EVAL_METRIC=["sturn_1_kendall","sturn_5_kendall","sturn_10_kendall"]
+
+METRICS_DISPLAY_NAME={"turn_pearson":"T$\\rho$","turn_kendall":"TK","sturn_0_pearson":"$T_{1}\\rho$",
+                      "sturn_1_pearson":"$T_{1}\\rho$","sturn_5_pearson":"$T_{5}\\rho$",
+                      "sturn_10_pearson":"T_{10}$\\rho$","sturn_0_kendall":"$T_{1}K$","sturn_1_kendall":"$T_{1}K$"
+                         ,"sturn_5_kendall":"$T_{5}K$","sturn_10_kendall":"$T_{10}K$"}
+
+METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC","bert_qpp":"Bert QPP",
+                     "bert_qpp_or_quac":"Bert QPP fine-tuned on Or QUAC",
+                     "bert_qpp_topiocqa":"Bert QPP fine-tuned on TopioCQA",
+                     "bert_qpp_hist":"Bert QPP+history","bert_qpp_hist_or_quac":"Bert QPP+history fine-tuned on Or QUAC",
+                     "bert_qpp_hist_topiocqa":"Bert QPP+history fine-tuned on TopioCQA"}
+
+def is_oracle(method_name):
+    return ('manual' in method_name) or ('oracle' in method_name)
+
+def annotate_result(result, method_name, metric_name, col_res, t_col_res):
+    if metric_name in TWO_DIGITS_METRICS:
+        result = round(float(result), 2)
+        results_str = '{:.2f}'.format(result).replace("0.", ".")
+    else:
+        result = round(float(result), 3)
+        results_str = '{:.3f}'.format(result).replace("0.", ".")
+    if is_oracle(method_name):
+        return results_str
+    results = [round(float(col_res[method][metric_name]), 2 if metric_name in TWO_DIGITS_METRICS else 3) for method in col_res if not is_oracle(method)]
+    if result >= max(results):
+        results_str = '\\textbf{' + results_str + '}'
+    if metric_name not in t_col_res:
+        return results_str
+    sgni_str = t_col_res[metric_name].get(method_name, None)
+    if sgni_str:
+        results_str = '$' + results_str + '^{' + sgni_str + '}$'
+    return results_str
+
+
+def get_method_row(method_name, res_dict, columns, sub_columns, tt_res={}):
+    res = method_name
+    res = METHOD_DISPLAY_NAME.get(res, res.replace("_"," "))
+    # res=res.replace("_"," ")
+    for col in columns:
+        res += '&'
+        col_res = res_dict[col]
+        t_col_res = tt_res.get(col,{})
+        values = [annotate_result(col_res[method_name][sub_col], method_name, sub_col, col_res, t_col_res) for sub_col in sub_columns]
+        values_str = '&'.join(values)
+        res += values_str
+    res += '\\\\ \\hline'
+    return res
+
+def calc_table_header(columns, sub_columns):
+    res = '||l | '
+    collection_columns = ' '.join(['c'] * len(sub_columns))
+    res += '|'.join([collection_columns] * len(columns))
+    res += ' |'
+    return res
+
+def get_column_row(columns, sub_columns):
+    METHOD_COLUMN_NAME="predictor"
+    if len(sub_columns)==1:
+        return "&".join([METHOD_COLUMN_NAME]+columns)+"\\\\ \\hline"
+    res = '\multirow{2}{4em}{' + METHOD_COLUMN_NAME + '} & '
+    columns_num = len(sub_columns)
+    multi_cols = ['\multicolumn{' + str(columns_num) + '}{|c|}{' + col + '}' for col in columns]
+    res += ' & '.join(multi_cols) + '\\\\ \cline{2-' + str(1 + columns_num * len(columns)) + '}'
+    return res
+
+def get_table_columns_names(columns, sub_columns):
+    res = '&'
+    columns_names = '&'.join(sub_columns)
+    res += '&'.join([columns_names] * len(columns))
+    res += '\\\\ \\hline'
+    return res
+
+def result_to_latex(res_dict,output_path):
+    with open(output_path, 'w') as output:
+        print('\\begin{center}', file=output)
+        column_names=list(res_dict.keys())
+        row_names=list(res_dict[column_names[0]].keys())
+        sub_columns_names=list(res_dict[column_names[0]][row_names[0]].keys())
+        table_header = calc_table_header(column_names, sub_columns_names)
+        print('\\begin{tabular}{' + table_header + '} \\hline', file=output)
+        table_collections_row = get_column_row(column_names, sub_columns_names)
+        print(table_collections_row, file=output)
+        if len(sub_columns_names)>1:
+            table_col_names_line = get_table_columns_names(column_names, sub_columns_names)
+            print(table_col_names_line, file=output)
+        for row_name in row_names:
+            print(get_method_row(row_name, res_dict, column_names, sub_columns_names,{}), file=output)
+        print('\\end{tabular}', file=output)
+        print('\\end{center}', file=output)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    parser.add_argument("--metric", default="recip_rank")
+    parser.add_argument("--col", default=DEFAULT_COL)
+    parser.add_argument("--res_dir", default=DEFAULT_RES_DIR)
+    parser.add_argument("--features", nargs='+', default=DEFAULT_SELECTED_FEATURES)
+    parser.add_argument("--qpp_res_dir_base",default=DEFAULT_QPP_RES_DIR)
+    parser.add_argument("--corr_type",default="pearson")
+    parser.add_argument("--min_turn_samples",type=int,default=0)
+    parser.add_argument("--table_type",default="pairwise_acc")
+    parser.add_argument("--output_file_name",default="latex_res.txt")
+    args=parser.parse_args()
+    metric=args.metric
+    col=args.col
+    res_dir=args.res_dir
+    features=args.features
+    min_turn_samples = args.min_turn_samples
+    qpp_res_dir_base = args.qpp_res_dir_base
+    table_type = args.table_type
+    output_file_name=args.output_file_name
+    EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
+    RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
+    rewrites_eval=load_eval(EVAL_PATH,REWRITE_METHODS)
+    label_dict = create_label_dict(rewrites_eval, metric)
+    sep_token="#" if col=="or_quac" else "_"
+    corr_type=args.corr_type
+    out_dir="{}/{}/{}/analysis/".format(qpp_res_dir_base,res_dir,col)
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+    latex_res={}
+    for rewrite_method in REWRITE_METHODS:
+        print("calc res for:",rewrite_method)
+        method_label = label_dict[rewrite_method]
+        latex_res[rewrite_method]={}
+        for feature in features:
+            feature_eval={}
+            print("calc feature:", feature)
+            if "cast" not in col:
+                feature_val_path = "{}/{}/{}/cache/{}_{}.json".format(qpp_res_dir_base, res_dir, col, feature, metric)
+                with open(feature_val_path) as f:
+                    feature_val = json.load(f)
+            start_time=time.time()
+            for eval_metric in QPP_EVAL_METRIC:
+                display_name=METRICS_DISPLAY_NAME.get(eval_metric,eval_metric)
+                if "cast" in col:
+                    table_path="{}/{}/{}/{}_{}_{}_30.csv".format(qpp_res_dir_base, res_dir, col,eval_metric,feature,metric)
+                    qpp_eval_table=pd.read_csv(table_path)
+                    print("eval table",qpp_eval_table.at[0,rewrite_method])
+                    feature_eval[display_name] =qpp_eval_table.at[0,rewrite_method]
+                else:
+                    feature_eval[display_name]=evaluate_topic_predictor(feature_val[rewrite_method],method_label,eval_metric)
+            print("feature value calc:", time.time() - start_time)
+            latex_res[rewrite_method][feature] = feature_eval
+    output_file="{}/{}".format(out_dir,output_file_name)
+    result_to_latex(latex_res,output_file)
+
+
+
+
+
+
+
+

@@ -5,6 +5,18 @@ class HqeRewriter():
         self.use_sep_token=use_sep_token
 
     def rewrite(self,query,**ctx):
+        for t in ctx['history']+[query]:
+            rewrite = self.hqe.rewrite(t)
+        self.reset_history()
+        if self.use_sep_token:
+            sub_query=rewrite.split(query)[0]
+            if len(sub_query)==0:
+                return query
+            print(rewrite,"sub:",sub_query,"sep",query)
+            return query+ " [SEP] " + sub_query
+        return rewrite
+    '''
+    def rewrite(self,query,**ctx):
         if len(ctx['history'])==0:
             self.reset_history()
         rewrite=self.hqe.rewrite(query)
@@ -15,6 +27,6 @@ class HqeRewriter():
             print(rewrite,"sub:",sub_query,"sep",query)
             return query+ " [SEP] " + sub_query
         return rewrite
+    '''
     def reset_history(self):
-        print("reset history")
         self.hqe.reset_history()

@@ -12,6 +12,7 @@ class BertQPP:
         self.append_prev_turns=append_prev_turns
         assert(not(append_history and append_prev_turns))
 
+
     def calc_qpp_feature(self, query, **ctx):
         if self.i%100==0:
             print("bert qpp:",self.i)
@@ -63,16 +64,6 @@ class BertQPP:
         q_len = len(q_tokens['input_ids'])
         if max_length >= q_len:
             return query
-        '''
-        query_turns = query.split("[SEP]")
-        for i in range(1, len(query_turns)):
-            truncated_query = "[SEP]".join(query_turns[i:])
-            q_tokens = self.tokenizer(truncated_query)
-            q_len = len(q_tokens['input_ids'])
-            if max_length >= q_len:
-                print("truncated q:", truncated_query)
-                return truncated_query
-        '''
         query_words = query.split(" ")
         for i in range(1, len(query_words)):
             truncated_query = " ".join(query_words[i:])
@@ -83,3 +74,22 @@ class BertQPP:
                 return truncated_query
         assert (False)
         return query
+
+class GroupwiseBertQPP:
+    def __init__(self, searcher, text_model_path_pattern,group_model_path_pattern, col, append_history=False, append_prev_turns=False):
+        self.searcher = searcher
+        self.text_model_path_pattern = text_model_path_pattern
+        self.group_model_path_pattern=group_model_path_pattern
+        self.col = col
+        self.method = None
+        self.append_history = append_history
+        self.i = 0
+        self.append_prev_turns = append_prev_turns
+        assert (not (append_history and append_prev_turns))
+
+    def calc_qpp_features(self,queries, ctx):
+        qids=queries.keys()
+
+
+
+

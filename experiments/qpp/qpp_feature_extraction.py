@@ -22,6 +22,9 @@ class QPPFeatureFactory:
         elif col=="or_quac":
             self.index_reader = IndexReader("/v/tomergur/convo/indexes/or_quac")
             self.searcher=SimpleSearcher("/v/tomergur/convo/indexes/or_quac")
+        elif col=="reddit":
+            self.index_reader = IndexReader("/v/tomergur/convo/indexes/reddit")
+            self.searcher=SimpleSearcher("/v/tomergur/convo/indexes/reddit")
         else:
             self.index_reader = IndexReader("/v/tomergur/convo/indexes/topiocqa")
             self.searcher = SimpleSearcher("/v/tomergur/convo/indexes/topiocqa")
