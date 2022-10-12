@@ -4,16 +4,21 @@ import scipy.stats
 import time
 import argparse
 import os
+import itertools
+
 import numpy as np
 import matplotlib.pyplot as plt
-import itertools
-from .qpp_feature_extraction import QPPFeatureFactory
-from .qpp_utils import load_data,create_label_dict,create_ctx,topic_evaluate_extractor
-from .const import QPP_FEATURES_PARAMS
 from sklearn.metrics import accuracy_score
+
+from experiments.qpp.qpp_feature_extraction import  QPPFeatureFactory
+from experiments.qpp.qpp_utils import load_data,create_label_dict,create_ctx,topic_evaluate_extractor
+from experiments.qpp.const import QPP_FEATURES_PARAMS
+
+
 
 REWRITE_METHODS=['raw','t5','all','hqe','quretec','manual']
 REWRITE_METHODS=['t5','all','hqe','quretec']
+REWRITE_METHODS=['t5']
 #REWRITE_METHODS=['all','hqe']
 DEFAULT_RES_DIR="kld_100"
 DEFAULT_VALID_DIR="valid_kld_100"

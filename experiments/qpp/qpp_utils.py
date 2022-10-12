@@ -68,7 +68,7 @@ def create_label_dict(rewrites_eval, metric):
 def create_ctx(runs, rewrites, turns_text, col="cast19"):
     ctx = {}
     REWRITE_REF_LIST = ["t5", "all", "hqe", "quretec"]
-    # REWRITE_REF_LIST=["all","hqe"]
+    REWRITE_REF_LIST=["t5"]
     res_lists = {}
     for method_name, method_runs in runs.items():
         res_lists[method_name] = {qid: list(zip(q_run.docid.tolist(), q_run.score.tolist())) for qid, q_run in
@@ -100,6 +100,8 @@ def create_ctx(runs, rewrites, turns_text, col="cast19"):
                                       "turn_text": turns_text.get(qid)}))
             q_ctx["ref_rewrites"] = rewrites_ctx
             q_ctx["qid"] = qid
+            q_ctx["tid"] = int(turn_id)
+            q_ctx["sid"] = sid
             method_ctx[qid] = q_ctx
         ctx[method_name] = method_ctx
     return ctx
@@ -186,7 +188,11 @@ def evaluate_topic_predictor(feature_values, labels, corr_type="pearson"):
 
 
 def topic_evaluate_extractor(extractor, rewrites, labels, ctx, return_raw_feature=False):
-    feature_res = {qid: extractor.calc_qpp_feature(q, **ctx[qid]) for qid, q in
+    #TODO: maybe use metaclass
+    if hasattr(extractor,'calc_qpp_features'):
+        feature_res=extractor.calc_qpp_features(rewrites,ctx)
+    else:
+        feature_res = {qid: extractor.calc_qpp_feature(q, **ctx[qid]) for qid, q in
                    rewrites.items() if qid in ctx}
     corr = calc_topic_corr(feature_res, labels)
     #corr,_ = calc_topic_pairwise_acc(feature_res, labels)

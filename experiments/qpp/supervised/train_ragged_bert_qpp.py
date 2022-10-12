@@ -5,7 +5,7 @@ from transformers.models.bert import BertConfig,TFBertForTokenClassification
 from dataclasses import dataclass, field
 import json
 import os
-from .groupwise_model import GroupwiseBert
+from experiments.qpp.supervised.groupwise_model import GroupwiseBert
 '''
 FEATURE_DESC = {
     'input_ids': tf.io.FixedLenFeature([512], tf.int64),
@@ -135,11 +135,10 @@ if __name__ == "__main__":
             history = model.fit(train_dataset, epochs=int(training_args.num_train_epochs),
                                 validation_data=valid_dataset, verbose=1, callbacks=callbacks)
             print(history.history)
-            if data_args.save_best_only:
-                model.load_weights(data_args.checkpoint_dir)
             with open("{}/{}".format(info_expr_dir, "history.json"), 'w') as f:
                 json.dump(history.history, f, indent=True)
             if data_args.checkpoint_dir and data_args.save_best_only:
+                print("load best model...")
                 model.load_weights(data_args.checkpoint_dir)
             text_embed_path = "{}/text_embed".format(training_args.output_dir)
             group_path = "{}/group_model".format(training_args.output_dir)

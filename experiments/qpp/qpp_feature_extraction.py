@@ -9,7 +9,7 @@ from .pre_ret_qpp import QueryLen,TurnNumber,MaxIDF,AvgIDF,MaxSCQ,AvgSCQ,MaxVar,
 from .post_ret_qpp import WIG,Clairty,NQC,NQCNorm,WIGNorm,ClairtyNorm
 from .ref_list_qpp import RefListQPP,HistQPP
 from .cached_qpp import CachedQPP
-from .bert_qpp_infer import BertQPP
+from .bert_qpp_infer import BertQPP,GroupwiseBertQPP
 from .collection_lm import CollectionLM
 
 
@@ -55,37 +55,13 @@ class QPPFeatureFactory:
         qpp_dict["bert_qpp_hist_or_quac"] = lambda: BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_hist_rerank/{}_{}", "or_quac",True)
         qpp_dict["bert_qpp_hist_topiocqa"] = lambda: BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_hist_rerank/{}_{}", "topiocqa",True)
         qpp_dict["bert_qpp_prev"] = lambda: BertQPP(self.searcher,"/v/tomergur/convo/qpp_models/bert_qpp_prev_rerank/{}_{}", col,append_prev_turns=True)
+        qpp_dict["many_turns_bert_qpp"] = lambda: GroupwiseBertQPP(self.searcher, "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}/text_embed/","/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}/group_model/", col)
         qpp_dict["WIG"]=lambda hp_config:(WIG(self.index_reader, self.dir_doc_cache,self.collection_lm, hp_config['k']))
         qpp_dict["clarity"] = lambda hp_config: Clairty(self.index_reader,self.doc_lm_cache, self.dir_doc_cache,self.collection_lm, hp_config['k'])
         qpp_dict["NQC"] = lambda hp_config: NQC(self.index_reader, self.dir_doc_cache,self.collection_lm, hp_config['k'])
         qpp_dict["NQC_norm"] = lambda hp_config: NQCNorm(k=hp_config['k'])
         qpp_dict["WIG_norm"] = lambda hp_config: WIGNorm(k=hp_config['k'])
         qpp_dict["clarity_norm"] = lambda hp_config: ClairtyNorm(self.index_reader,self.doc_lm_cache,self.collection_lm, hp_config['k'])
-        '''
-        qpp_dict["ref_rewrites_max_idf"] = lambda hp_config: RefListQPP(MaxIDF(self.index_reader,self.terms_idf_cache),ref_ctx_field_name="ref_rewrites", **hp_config)
-        qpp_dict["ref_rewrites_avg_idf"] = lambda hp_config: RefListQPP(AvgIDF(self.index_reader,self.terms_idf_cache),ref_ctx_field_name="ref_rewrites", **hp_config)
-        qpp_dict["ref_rewrites_max_scq"] = lambda hp_config: RefListQPP(MaxSCQ(self.index_reader, self.terms_scq_cache),                                                    ref_ctx_field_name="ref_rewrites", **hp_config)
-        qpp_dict["ref_rewrites_avg_scq"] = lambda hp_config: RefListQPP(AvgSCQ(self.index_reader, self.terms_scq_cache),
-                                                                        ref_ctx_field_name="ref_rewrites", **hp_config)
-        qpp_dict["ref_rewrites_max_var"]=lambda hp_config: RefListQPP(MaxVar(self.index_reader,self.terms_var_cache),ref_ctx_field_name="ref_rewrites",**hp_config)
-        qpp_dict["ref_rewrites_avg_var"]=lambda hp_config: RefListQPP(AvgVar(self.index_reader,self.terms_var_cache),ref_ctx_field_name="ref_rewrites",**hp_config)
-        qpp_dict["ref_rewrites_WIG"]=lambda hp_config: RefListQPP(WIG(self.index_reader, self.dir_doc_cache,self.collection_lm, hp_config['k']),ref_ctx_field_name="ref_rewrites",n=hp_config["n"],lambd=hp_config["lambd"])
-        qpp_dict["ref_rewrites_clarity"]=lambda hp_config: RefListQPP(Clairty(self.index_reader,self.doc_lm_cache, self.dir_doc_cache,self.collection_lm, hp_config['k']),ref_ctx_field_name="ref_rewrites",n=hp_config["n"],lambd=hp_config["lambd"])
-        qpp_dict["ref_rewrites_NQC"]=lambda hp_config: RefListQPP(NQC(self.index_reader, self.dir_doc_cache,self.collection_lm, hp_config['k']),ref_ctx_field_name="ref_rewrites",n=hp_config["n"],lambd=hp_config["lambd"])
-       
-        qpp_dict["ref_hist_max_idf"]=lambda hp_config: RefListQPP(MaxIDF(self.index_reader,self.terms_idf_cache),**hp_config)
-        qpp_dict["ref_hist_avg_idf"]=lambda hp_config: RefListQPP(AvgIDF(self.index_reader,self.terms_idf_cache),**hp_config)
-        qpp_dict["ref_hist_max_scq"]=lambda hp_config: RefListQPP(MaxSCQ(self.index_reader),**hp_config)
-        qpp_dict["ref_hist_avg_scq"]=lambda hp_config: RefListQPP(AvgSCQ(self.index_reader),**hp_config)
-        qpp_dict["ref_hist_max_var"]=lambda hp_config: RefListQPP(MaxVar(self.index_reader,self.terms_var_cache),**hp_config)
-        qpp_dict["ref_hist_avg_var"]=lambda hp_config: RefListQPP(AvgVar(self.index_reader,self.terms_var_cache),**hp_config)
-        qpp_dict["ref_hist_WIG"]=lambda hp_config: RefListQPP(WIG(self.index_reader, self.dir_doc_cache,self.collection_lm, hp_config['k']),n=hp_config["n"],lambd=hp_config["lambd"])
-        qpp_dict["ref_hist_clarity"]=lambda hp_config: RefListQPP(Clairty(self.index_reader,self.doc_lm_cache, self.dir_doc_cache,self.collection_lm, hp_config['k']),n=hp_config["n"],lambd=hp_config["lambd"])
-        qpp_dict["ref_hist_NQC"]=lambda hp_config: RefListQPP(NQC(self.index_reader, self.dir_doc_cache,self.collection_lm, hp_config['k']),n=hp_config["n"],lambd=hp_config["lambd"])
-
-        #qpp_dict["ref_hist_decay_max_idf"]=lambda hp_config: HistQPP(MaxIDF(self.index_reader,self.terms_idf_cache),**hp_config)
-        #qpp_dict["ref_hist_decay_avg_idf"]=lambda hp_config: HistQPP(AvgIDF(self.index_reader,self.terms_idf_cache),**hp_config)
-        '''
         self.qpp_dict=qpp_dict
 
     def _create_hist_factory_func(self,core_feature_name,**params):
