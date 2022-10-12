@@ -14,18 +14,11 @@ class GroupwiseBert(tf.keras.Model):
     @staticmethod
     def from_pretrained(text_model_path,group_model_path):
         text_model=TFAutoModel.from_pretrained(text_model_path)
-        #,load_weight_prefix="groupwise_bert"
-        #"groupwise_bert/tf_bert_for_token_classification"
+        #group_model = TFAutoModelForTokenClassification.from_pretrained(group_model_path, num_labels=2)
+
         with tf.name_scope("groupwise_bert") as scope:
             group_model=TFAutoModelForTokenClassification.from_pretrained(group_model_path,num_labels=2)
-        '''
-        with h5py.File(text_model_path+"/tf_model.h5",'r') as f:
-            names=hdf5_format.load_attributes_from_hdf5_group(f, "layer_names")
-            weights=hdf5_format.load_attributes_from_hdf5_group(f["bert"], "weight_names")
-        with h5py.File(group_model_path+"/tf_model.h5",'r') as f:
-            names=hdf5_format.load_attributes_from_hdf5_group(f, "layer_names")
-            weights=hdf5_format.load_attributes_from_hdf5_group(f["bert"], "weight_names")
-        '''
+
         return GroupwiseBert(text_model,group_model)
 
     def call(self,inputs,training=False):
