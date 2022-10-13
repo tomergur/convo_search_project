@@ -1,6 +1,7 @@
 from transformers import AutoTokenizer,TFAutoModelForSequenceClassification
 import json
 import tensorflow as tf
+from keras import backend as K
 from .supervised.groupwise_model import GroupwiseBert
 
 def truncate_query(query,tokenizer, max_length=128):
@@ -126,6 +127,7 @@ class GroupwiseBertQPP:
         if cur_method!=self.method:
             text_model_path = self.text_model_path_pattern.format(self.col,cur_method)
             group_model_path = self.group_model_path_pattern.format(self.col,cur_method)
+            K.clear_session()
             self.tokenizer = AutoTokenizer.from_pretrained(text_model_path, use_fast=True)
             self.model = GroupwiseBert.from_pretrained(text_model_path,group_model_path)
             self.model.group_bert.summary()

@@ -16,6 +16,7 @@ from .collection_lm import CollectionLM
 class QPPFeatureFactory:
     def __init__(self,col='cast19',cached_features_path=None):
         self.cached_features_path=cached_features_path
+        self.col=col
         if 'cast' in col:
             self.index_reader = IndexReader.from_prebuilt_index('cast2019')
             self.searcher=SimpleSearcher.from_prebuilt_index('cast2019')
@@ -96,6 +97,22 @@ class QPPFeatureFactory:
 
 
     def create_qpp_extractor(self,feature_name,**params):
+
+        if feature_name.startswith("bert_qpp") and (not feature_name.endswith("qpp")):
+
+            suffix = feature_name.split("_")[-1]
+            print("params  stuff",suffix)
+            return BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}_"+suffix+"/", self.col)
+
+        if feature_name.startswith("many_turns_bert_qpp") and (not feature_name.endswith("qpp")):
+
+            suffix = feature_name.split("_")[-1]
+            print("params  stuff",suffix)
+            text_embed_model="/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}"+"_{}/text_embed/".format(suffix)
+            group_model = "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}" + "_{}/group_model/".format(
+                suffix)
+            return GroupwiseBertQPP(self.searcher, text_embed_model,group_model, self.col)
+
         if len(params)==0:
             if self.cached_features_path is not None:
                 cached_feature_file_path = "{}/cache/{}.json".format(self.cached_features_path, feature_name)
@@ -117,6 +134,9 @@ class QPPFeatureFactory:
         if feature_name.startswith("ref_hist"):
             core_feature_name=feature_name.split("ref_hist_")[1]
             return self._create_hist_factory_func(core_feature_name=core_feature_name,**params)
+
+
+
 
         if feature_name.startswith("ref_rewrites"):
             core_feature_name=feature_name.split("ref_rewrites_")[1]

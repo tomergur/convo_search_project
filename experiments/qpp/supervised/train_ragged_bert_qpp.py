@@ -6,14 +6,7 @@ from dataclasses import dataclass, field
 import json
 import os
 from experiments.qpp.supervised.groupwise_model import GroupwiseBert
-'''
-FEATURE_DESC = {
-    'input_ids': tf.io.FixedLenFeature([512], tf.int64),
-    'attention_mask': tf.io.FixedLenFeature([512], tf.int64),
-    'token_type_ids': tf.io.FixedLenFeature([512], tf.int64),
-    'labels': tf.io.FixedLenFeature([1], tf.float32)
-}
-'''
+
 FEATURE_DESC = {
     'input_ids': tf.io.RaggedFeature(value_key="input_ids",partitions=[tf.io.RaggedFeature.UniformRowLength(512)],dtype=tf.int64),
     'attention_mask': tf.io.RaggedFeature(value_key="attention_mask",partitions=[tf.io.RaggedFeature.UniformRowLength(512)],dtype=tf.int64),
@@ -32,6 +25,26 @@ def _parse_function(example_proto):
             'token_type_ids': token_type_ids}, labels
 
 
+def pad_data(inputs,labels,pad_to=-1):
+    if pad_to>0:
+        input_ids=inputs["input_ids"]
+        attention_mask= inputs["attention_mask"]
+        token_type_ids = inputs["token_type_ids"]
+        print("padddddddddddding!!!!", tf.shape(input_ids))
+        print(type(input_ids))
+        print("labels shape",tf.shape(labels))
+
+        cur_size=tf.shape(input_ids).shape[0]
+        print(cur_size,pad_to-cur_size)
+        num_pad=pad_to-cur_size
+        input_ids=tf.pad(input_ids,[[0,num_pad],[0,0]])
+        attention_mask = tf.pad(attention_mask, [[0, num_pad], [0, 0]])
+        token_type_ids = tf.pad(token_type_ids, [[0, num_pad], [0, 0]])
+        labels = tf.pad(labels,[[0, num_pad], [0, 0]])
+        return {'input_ids': input_ids, 'attention_mask': attention_mask,
+                'token_type_ids': token_type_ids}, labels
+    return inputs
+
 def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_function):
     dataset_files = tf.io.gfile.glob(files_path)
     raw_train_data = tf.data.TFRecordDataset(dataset_files, num_parallel_reads=None)
@@ -43,6 +56,7 @@ def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_funct
         print("number of train samples:", max_train_size)
         train_dataset = train_dataset.take(max_train_size)
     #return train_dataset.batch(batch_size)
+    #.map(lambda x,y:pad_data(x,y,16))
     return train_dataset
 
 
