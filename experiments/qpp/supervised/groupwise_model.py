@@ -8,18 +8,16 @@ class GroupwiseBert(tf.keras.Model):
         super(GroupwiseBert, self).__init__()
         self.text_bert=text_bert
         self.group_bert=group_bert
-        #self.group_bert.layers[0].embeddings.trainable=False
         #self.group_bert.layers[0].embeddings.word_embeddings.trainable=False
 
     @staticmethod
     def from_pretrained(text_model_path,group_model_path):
         text_model=TFAutoModel.from_pretrained(text_model_path)
-        #group_model = TFAutoModelForTokenClassification.from_pretrained(group_model_path, num_labels=2)
+        #group_model = TFAutoModelForTokenClassification.from_pretrained(group_model_path)
         # "groupwise_bert"
 
         with tf.name_scope("groupwise_bert") as scope:
-            print("scope name:",tf.get_current_name_scope())
-            group_model=TFAutoModelForTokenClassification.from_pretrained(group_model_path,num_labels=2)
+            group_model=TFAutoModelForTokenClassification.from_pretrained(group_model_path)
 
         return GroupwiseBert(text_model,group_model)
 

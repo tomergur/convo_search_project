@@ -106,13 +106,8 @@ class GroupwiseBertQPP:
         ret = self.tokenizer(trunc_queries, passages, max_length=512, truncation=True, return_token_type_ids=True,
                              return_tensors='tf',padding=True)
         logits = self.model(ret,training=False)
-        # print("logits",logits)
-        scores = tf.keras.layers.Activation(tf.nn.softmax)(logits)
+        scores = tf.keras.layers.Activation(tf.nn.softmax)(logits) if logits.shape[1]>1 else logits
         scores = scores.numpy()
-        #print(scores,scores.shape)
-        #print(scores[:,-1],scores[:,-1].shape,type(scores[:,-1][0]))
-        #res = scores[0, -1]
-        # print("query res",res,type(res.item()))
         return [s.item() for s in scores[:,-1]]
 
     def calc_qpp_features(self,queries, ctx):

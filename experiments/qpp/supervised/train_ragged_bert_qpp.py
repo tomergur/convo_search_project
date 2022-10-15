@@ -61,16 +61,16 @@ def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_funct
 
 
 def create_model(model_name, data_args):
-
+    num_classes=1 if data_args.use_mse else 2
     if data_args.groupwise_model:
         model=TFAutoModel.from_pretrained(model_name, from_pt=data_args.from_pt)
         if data_args.group_model_name_or_path:
-            group_model=TFAutoModelForTokenClassification.from_pretrained(data_args.group_model_name_or_path,from_pt=True,num_hidden_layers=4, num_labels=2)
+            group_model=TFAutoModelForTokenClassification.from_pretrained(data_args.group_model_name_or_path,from_pt=True,num_hidden_layers=4, num_labels=num_classes)
         else:
-            group_conf = BertConfig(num_hidden_layers=4, num_labels=2)
+            group_conf = BertConfig(num_hidden_layers=4, num_labels=num_classes)
             group_model=TFBertForTokenClassification(group_conf)
         return GroupwiseBert(model,group_model)
-    model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt, num_labels=2)
+    model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt, num_labels=num_classes)
     return model
 
 
@@ -91,6 +91,7 @@ class DataArguments:
     from_pt: bool = False
     early_stop: bool = False
     groupwise_model: bool = True
+    use_mse: bool = False
 
 
 def ce_loss(y_true,y_pred):
@@ -122,8 +123,7 @@ if __name__ == "__main__":
         json.dump(data_args.__dict__, f, indent=True)
     with training_args.strategy.scope():
         model = create_model(model_name_or_path, data_args)
-        loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-        loss =ce_loss
+        loss =ce_loss if not data_args.use_mse else tf.keras.losses.MeanSquaredError()
         metrics = []
         # metrics = metrics
         #for debug ,run_eagerly=True

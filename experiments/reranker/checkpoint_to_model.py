@@ -7,6 +7,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input_path")
     parser.add_argument("output_path")
+    parser.add_argument("--consist_train")
     args=parser.parse_args()
     model_name_or_path="castorini/monobert-large-msmarco-finetune-only"
     input_path=args.input_path
@@ -15,6 +16,7 @@ if __name__=="__main__":
     print(checkpoints_dirs)
     tokenizer=AutoTokenizer.from_pretrained(model_name_or_path)
     model = TFAutoModelForSequenceClassification.from_pretrained(model_name_or_path, from_pt=True, num_labels=2)
+
     if not os.path.exists(output_path):
         os.mkdir(output_path)
     for checkpoint_dir in checkpoints_dirs:
