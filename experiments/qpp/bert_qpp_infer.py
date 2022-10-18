@@ -76,7 +76,7 @@ class BertQPP:
         logits = self.model(input_ids, token_type_ids=tt_ids, attention_mask=att_mask, return_dict=False,
                             training=False)[0]
         #print("logits",logits)
-        scores = tf.keras.layers.Activation(tf.nn.softmax)(logits)
+        scores = tf.keras.layers.Activation(tf.nn.softmax)(logits) if logits.shape[1]>1 else logits
         scores=scores.numpy()
         #print(scores)
         res = scores[0,-1]

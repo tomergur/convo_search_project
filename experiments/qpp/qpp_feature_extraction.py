@@ -56,7 +56,15 @@ class QPPFeatureFactory:
         qpp_dict["bert_qpp_hist_or_quac"] = lambda: BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_hist_rerank/{}_{}", "or_quac",True)
         qpp_dict["bert_qpp_hist_topiocqa"] = lambda: BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_hist_rerank/{}_{}", "topiocqa",True)
         qpp_dict["bert_qpp_prev"] = lambda: BertQPP(self.searcher,"/v/tomergur/convo/qpp_models/bert_qpp_prev_rerank/{}_{}", col,append_prev_turns=True)
-        qpp_dict["many_turns_bert_qpp"] = lambda: GroupwiseBertQPP(self.searcher, "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}/text_embed/","/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}/group_model/", col)
+        qpp_dict["many_turns_bert_qpp"] = lambda : GroupwiseBertQPP(self.searcher, "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}/text_embed/","/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}/group_model/", col)
+        qpp_dict["many_turns_bert_qpp_cls"] = lambda hp_config: GroupwiseBertQPP(self.searcher, "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}"+hp_config['suffix']+"/text_embed/","/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}"+hp_config['suffix']+"/group_model/", col)
+        qpp_dict["many_turns_bert_qpp_2cls"] = lambda hp_config: GroupwiseBertQPP(self.searcher, "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}"+hp_config['suffix']+"/text_embed/","/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}"+hp_config['suffix']+"/group_model/", col)
+        qpp_dict["many_turns_bert_qpp_reg"] = lambda hp_config: GroupwiseBertQPP(self.searcher, "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}"+hp_config['suffix']+"/text_embed/","/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}"+hp_config['suffix']+"/group_model/", col)
+        qpp_dict["many_turns_bert_qpp_hp"] = lambda hp_config: GroupwiseBertQPP(self.searcher, "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}"+hp_config['suffix']+"/text_embed/","/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}"+hp_config['suffix']+"/group_model/", col)
+        qpp_dict["bert_qpp_cls"] = lambda hp_config: BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}"+hp_config['suffix'], col)
+        qpp_dict["bert_qpp_reg"] = lambda hp_config: BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}"+hp_config['suffix'], col)
+        qpp_dict["bert_qpp_hp"] = lambda hp_config: BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}"+hp_config['suffix'], col)
+
         qpp_dict["WIG"]=lambda hp_config:(WIG(self.index_reader, self.dir_doc_cache,self.collection_lm, hp_config['k']))
         qpp_dict["clarity"] = lambda hp_config: Clairty(self.index_reader,self.doc_lm_cache, self.dir_doc_cache,self.collection_lm, hp_config['k'])
         qpp_dict["NQC"] = lambda hp_config: NQC(self.index_reader, self.dir_doc_cache,self.collection_lm, hp_config['k'])
@@ -98,13 +106,16 @@ class QPPFeatureFactory:
 
     def create_qpp_extractor(self,feature_name,**params):
 
-        if feature_name.startswith("bert_qpp") and (not feature_name.endswith("qpp")):
 
+        if feature_name.startswith("bert_qpp") and (not feature_name.endswith("qpp")) and (
+        not feature_name.endswith("cls")) and (not feature_name.endswith("reg")) and (not feature_name.endswith("hp")):
             suffix = feature_name.split("_")[-1]
             print("params  stuff",suffix)
             return BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}_"+suffix+"/", self.col)
 
-        if feature_name.startswith("many_turns_bert_qpp") and (not feature_name.endswith("qpp")):
+
+        if feature_name.startswith("many_turns_bert_qpp") and (not feature_name.endswith("qpp")) and (
+        not feature_name.endswith("cls")) and (not feature_name.endswith("reg")) and (not feature_name.endswith("hp")):
 
             suffix = feature_name.split("_")[-1]
             print("params  stuff",suffix)
@@ -112,12 +123,6 @@ class QPPFeatureFactory:
             group_model = "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}" + "_{}/group_model/".format(
                 suffix)
             return GroupwiseBertQPP(self.searcher, text_embed_model,group_model, self.col)
-
-        if len(params)==0:
-            if self.cached_features_path is not None:
-                cached_feature_file_path = "{}/cache/{}.json".format(self.cached_features_path, feature_name)
-                return CachedQPP(cached_feature_file_path)
-            return self.qpp_dict[feature_name]()
 
         if feature_name.startswith("ref_hist_comb_decay"):
             core_feature_name=feature_name.split("ref_hist_comb_decay_")[1]
@@ -135,16 +140,21 @@ class QPPFeatureFactory:
             core_feature_name=feature_name.split("ref_hist_")[1]
             return self._create_hist_factory_func(core_feature_name=core_feature_name,**params)
 
-
-
-
         if feature_name.startswith("ref_rewrites"):
             core_feature_name=feature_name.split("ref_rewrites_")[1]
             return self._create_rewrites_factory_func(core_feature_name=core_feature_name,**params)
-        print()
+
+        if len(params)==0:
+            if self.cached_features_path is not None:
+                cached_feature_file_path = "{}/{}.json".format(self.cached_features_path, feature_name)
+                predictor = self.qpp_dict[feature_name]()
+                return CachedQPP(predictor,cached_feature_file_path)
+            return self.qpp_dict[feature_name]()
+
         if self.cached_features_path is not None:
-            cached_feature_file_path="{}/cache/{}.json".format(self.cached_features_path,feature_name)
-            return CachedQPP(cached_feature_file_path,**params)
+            cached_feature_file_path="{}/{}.json".format(self.cached_features_path,feature_name)
+            predictor = self.qpp_dict[feature_name](params)
+            return CachedQPP(predictor,cached_feature_file_path,**params)
         return self.qpp_dict[feature_name](params)
 
 

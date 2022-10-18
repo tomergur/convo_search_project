@@ -1,6 +1,7 @@
 import json
 class CachedQPP:
-    def __init__(self,feature_path,**params):
+    def __init__(self,predictor,feature_path,**params):
+        self.predictor = predictor
         with open(feature_path) as f:
             res_dicts=json.load(f)
         if len(params)==0:
@@ -21,4 +22,6 @@ class CachedQPP:
     def calc_qpp_feature(self,query,**ctx):
         method_name=ctx["method"]
         qid=ctx["qid"]
+        if qid not in self.cached_feature[method_name]:
+            return self.predictor.calc_qpp_feature(query,**ctx)
         return self.cached_feature[method_name][qid]

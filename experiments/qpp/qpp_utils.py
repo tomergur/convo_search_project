@@ -194,8 +194,8 @@ def topic_evaluate_extractor(extractor, rewrites, labels, ctx, return_raw_featur
     else:
         feature_res = {qid: extractor.calc_qpp_feature(q, **ctx[qid]) for qid, q in
                    rewrites.items() if qid in ctx}
-    corr = calc_topic_corr(feature_res, labels)
-    #corr,_ = calc_topic_pairwise_acc(feature_res, labels)
+    #corr = calc_topic_corr(feature_res, labels)
+    corr,_ = calc_topic_pairwise_acc(feature_res, labels)
     if return_raw_feature:
         return corr, feature_res
     return corr

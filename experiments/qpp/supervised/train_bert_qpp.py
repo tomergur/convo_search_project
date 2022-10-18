@@ -95,7 +95,7 @@ if __name__ == "__main__":
     if not os.path.exists(info_expr_dir):
         os.mkdir(info_expr_dir)
     with open("{}/{}".format(info_expr_dir, "training_args.json"), 'w') as f:
-        json.dump({k: v for k, v in training_args.__dict__.items() if isinstance(v, int) or isinstance(v, str)}, f,
+        json.dump({k: v for k, v in training_args.__dict__.items() if isinstance(v, int) or isinstance(v, str) or isinstance(v, float)}, f,
                   indent=True)
     with open("{}/{}".format(info_expr_dir, "data_args.json"), 'w') as f:
         json.dump(data_args.__dict__, f, indent=True)
@@ -105,6 +105,7 @@ if __name__ == "__main__":
         metrics = []
         # metrics = metrics
         #for debug ,run_eagerly=True
+        print("")
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=training_args.learning_rate), loss=loss,
                           metrics=metrics)
         if training_args.do_train:

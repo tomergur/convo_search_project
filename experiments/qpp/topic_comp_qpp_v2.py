@@ -82,7 +82,7 @@ if __name__=="__main__":
     print("loaded test data")
     sids = rewrites_eval[REWRITE_METHODS[0]].sid.unique()
     qpp_res_dir = "{}/{}/{}/".format(qpp_res_dir_base, res_dir, col)
-    qpp_factory = QPPFeatureFactory(col,qpp_res_dir if load_cached_feature else None)
+    qpp_factory = QPPFeatureFactory(col,qpp_res_dir+"/valid_cache/" if load_cached_feature else None)
     corr_res = {}
     threshold_res = {"baseline":{}}
     ctx_valid = create_ctx(runs_valid, rewrites_valid, turns_text_valid,col)
@@ -122,6 +122,7 @@ if __name__=="__main__":
             valid_selected_hp = np.argmax(corr_valid)
             if len(hp_configs) > 0:
                 print(hp_configs[valid_selected_hp])
+
             selected_extractor=extractors[valid_selected_hp]
             test_corr,features_val_test=topic_evaluate_extractor(selected_extractor, method_rewrites_test, labels_test, method_ctx_test, True)
             corr_res[feature][method_name] = round(test_corr,3)
@@ -150,6 +151,9 @@ if __name__=="__main__":
             res_path = "{}/cache/{}_{}.json".format(qpp_res_dir, feature, metric)
             with open(res_path, 'w') as f:
                 json.dump(feature_cache,f)
+            valid_res_path = "{}/valid_cache/{}_{}.json".format(qpp_res_dir, feature, metric)
+            with open(valid_res_path, 'w') as f:
+                json.dump(valid_features_cache,f)
 
 
     r_res = []
