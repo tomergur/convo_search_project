@@ -68,7 +68,7 @@ def create_label_dict(rewrites_eval, metric):
 def create_ctx(runs, rewrites, turns_text, col="cast19"):
     ctx = {}
     REWRITE_REF_LIST = ["t5", "all", "hqe", "quretec"]
-    REWRITE_REF_LIST=["t5"]
+    #REWRITE_REF_LIST=["t5"]
     res_lists = {}
     for method_name, method_runs in runs.items():
         res_lists[method_name] = {qid: list(zip(q_run.docid.tolist(), q_run.score.tolist())) for qid, q_run in
@@ -126,6 +126,7 @@ def calc_topic_turn_corr(feature_values, labels, corr_type="pearson",min_queries
     turn_corr=[calc_topic_corr(feature_values,turn_labels,corr_type=corr_type) for turn_labels in turns_labels.values() if len(turn_labels)>=min_queries]
     turn_corr=[x for x in turn_corr if not math.isnan(x)]
     #print(turn_corr)
+
     return np.mean(turn_corr)
 
 

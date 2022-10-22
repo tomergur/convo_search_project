@@ -15,7 +15,7 @@ def truncate_query(query,tokenizer, max_length=128):
         q_tokens = tokenizer(truncated_query)
         q_len = len(q_tokens['input_ids'])
         if max_length >= q_len:
-            print("truncated q:", truncated_query)
+            #print("truncated q:", truncated_query)
             return truncated_query
     assert (False)
     return query

@@ -120,7 +120,7 @@ if __name__ == "__main__":
                 # hist=history[last_turn_qid][query_field_name][0]
                 raw_query = " [SEP] ".join(hist + [raw_query])
         query = truncate_query(raw_query, tokenizer)
-        ##print(query)
+        print(qid,"rewritten query",query)
         if qid not in metrics_values:
             print("not serilazing qid:",qid)
             continue

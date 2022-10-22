@@ -13,8 +13,8 @@ DEFAULT_COL='or_quac'
 DEFAULT_RES_DIR="rerank_kld_100"
 DEFAULT_QPP_RES_DIR="/lv_local/home/tomergur/convo_search_project/data/qpp/topic_comp/"
 DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG","NQC","clarity","bert_qpp","bert_qpp_or_quac"]
-DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm","clarity_norm","bert_qpp","bert_qpp_hist"]
-DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","WIG_norm","NQC_norm","clarity_norm"]
+DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm","clarity_norm","bert_qpp","bert_qpp_hist","bert_qpp_prev","many_turns_bert_qpp","many_turns_bert_qpp_hist"]
+#DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","WIG_norm","NQC_norm","clarity_norm"]
 '''
 DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm",
                            "clarity_norm","bert_qpp_or_quac","bert_qpp_topiocqa","bert_qpp_hist_or_quac","bert_qpp_hist_topiocqa"]
@@ -22,11 +22,12 @@ DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_
 REWRITE_METHODS=['t5','all','hqe','quretec']
 #REWRITE_METHODS=['all','hqe']
 TWO_DIGITS_METRICS = ["PA","TPA"]
-QPP_EVAL_METRIC=["TPA","turn_pearson","turn_kendall"]
+
 QPP_EVAL_METRIC=["TPA","PA"]
 QPP_EVAL_METRIC=["sturn_0_pearson","sturn_5_pearson","sturn_10_pearson"]
 QPP_EVAL_METRIC=["pearson"]
 QPP_EVAL_METRIC=["pearson","kendall"]
+QPP_EVAL_METRIC=["TPA","turn_pearson","turn_kendall"]
 
 #QPP_EVAL_METRIC=["sturn_1_kendall","sturn_5_kendall","sturn_10_kendall"]
 

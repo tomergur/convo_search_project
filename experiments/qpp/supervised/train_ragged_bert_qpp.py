@@ -1,11 +1,10 @@
 import tensorflow as tf
-from transformers import TFAutoModelForSequenceClassification, AutoTokenizer,TFAutoModel,TFAutoModelForTokenClassification
+from transformers import AutoTokenizer
 from transformers import HfArgumentParser, TFTrainingArguments
-from transformers.models.bert import BertConfig,TFBertForTokenClassification
 from dataclasses import dataclass, field
 import json
 import os
-from experiments.qpp.supervised.groupwise_model import GroupwiseBert
+from experiments.qpp.supervised.train_utils import create_model,ce_loss
 
 FEATURE_DESC = {
     'input_ids': tf.io.RaggedFeature(value_key="input_ids",partitions=[tf.io.RaggedFeature.UniformRowLength(512)],dtype=tf.int64),
@@ -60,22 +59,6 @@ def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_funct
     return train_dataset
 
 
-def create_model(model_name, data_args):
-    num_classes=1 if data_args.use_mse else 2
-    if data_args.groupwise_model:
-        model=TFAutoModel.from_pretrained(model_name, from_pt=data_args.from_pt)
-        if data_args.group_model_name_or_path:
-            group_model=TFAutoModelForTokenClassification.from_pretrained(data_args.group_model_name_or_path,from_pt=True,num_hidden_layers=4, num_labels=num_classes)
-        else:
-            group_conf = BertConfig(num_hidden_layers=4, num_labels=num_classes)
-            group_model=TFBertForTokenClassification(group_conf)
-        return GroupwiseBert(model,group_model)
-    model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt, num_labels=num_classes)
-    return model
-
-
-
-
 @dataclass
 class DataArguments:
     train_files: str = "/v/tomergur/convo/reranking/qrecc_train_all/*.tfrecords"
@@ -92,14 +75,6 @@ class DataArguments:
     early_stop: bool = False
     groupwise_model: bool = True
     use_mse: bool = False
-
-
-def ce_loss(y_true,y_pred):
-    scores = tf.nn.log_softmax(y_pred)
-    non_rel_prob=tf.ones_like(y_true,dtype=tf.float32)-y_true
-    loss=-1*(tf.math.multiply(scores,tf.concat([non_rel_prob,y_true],axis=1)))
-    loss=tf.reduce_sum(loss,axis=-1)
-    return loss
 
 
 if __name__ == "__main__":

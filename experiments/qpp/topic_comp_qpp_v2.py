@@ -18,7 +18,7 @@ from experiments.qpp.const import QPP_FEATURES_PARAMS
 
 REWRITE_METHODS=['raw','t5','all','hqe','quretec','manual']
 REWRITE_METHODS=['t5','all','hqe','quretec']
-REWRITE_METHODS=['t5']
+#REWRITE_METHODS=['t5']
 #REWRITE_METHODS=['all','hqe']
 DEFAULT_RES_DIR="kld_100"
 DEFAULT_VALID_DIR="valid_kld_100"

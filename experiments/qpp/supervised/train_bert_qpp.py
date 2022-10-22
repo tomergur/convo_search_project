@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import json
 import os
 
-from experiments.reranker.consistency_trainer import ConsistencyTrainer
+from experiments.qpp.supervised.train_utils import create_model,ce_loss
 
 FEATURE_DESC = {
     'input_ids': tf.io.FixedLenFeature([512], tf.int64),
@@ -38,12 +38,12 @@ def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_funct
         train_dataset = train_dataset.take(max_train_size)
     return train_dataset.batch(batch_size)
 
-
+'''
 def create_model(model_name, data_args):
     num_labels = 1 if data_args.use_mse else 2
     model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt, num_labels=num_labels)
     return model
-
+'''
 
 @dataclass
 class DataArguments:
@@ -52,6 +52,7 @@ class DataArguments:
     valid_files: str = "/v/tomergur/convo/reranking/quac_dev_all/*.tfrecords"
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_exp_doc_5/*.tfrecords"
     model_name_or_path: str = "bert_base_uncased"
+    group_model_name_or_path: str = None
     info_dir: str = "/v/tomergur/convo/reranking/models/exprs/"
     checkpoint_dir: str = None
     save_best_only: bool = False
@@ -59,25 +60,7 @@ class DataArguments:
     from_pt: bool = False
     early_stop: bool = False
     use_mse:bool = False
-
-
-def ce_loss(y_true,y_pred):
-    scores = tf.nn.log_softmax(y_pred)
-    non_rel_prob=tf.ones_like(y_true,dtype=tf.float32)-y_true
-    loss=-1*(tf.math.multiply(scores,tf.concat([non_rel_prob,y_true],axis=1)))
-    loss=tf.reduce_sum(loss,axis=-1)
-    '''
-    TODO: remove prints
-    print("can debug",y_true.shape,y_pred.shape)
-    print("pred:",tf.nn.softmax(y_pred))
-    print("y true:",y_true)
-    print("scores",scores)
-    print("scores label 1:",scores[:,-1])
-    print("y not true", non_rel_prob)
-    print("concat labels",tf.concat([non_rel_prob,y_true],axis=1))
-    print("loss:",loss)
-    '''
-    return loss
+    groupwise_model: bool = False
 
 
 if __name__ == "__main__":
@@ -132,14 +115,20 @@ if __name__ == "__main__":
             history = model.fit(train_dataset, epochs=int(training_args.num_train_epochs),
                                 validation_data=valid_dataset, verbose=1, callbacks=callbacks)
             print(history.history)
-            if data_args.save_best_only:
-                model.load_weights(data_args.checkpoint_dir)
             with open("{}/{}".format(info_expr_dir, "history.json"), 'w') as f:
                 json.dump(history.history, f, indent=True)
             if data_args.checkpoint_dir and data_args.save_best_only:
                 model.load_weights(data_args.checkpoint_dir)
-            tokenizer.save_pretrained(training_args.output_dir)
-            model.save_pretrained(training_args.output_dir)
+
+            if data_args.groupwise_model:
+                text_embed_path = "{}/text_embed".format(training_args.output_dir)
+                group_path = "{}/group_model".format(training_args.output_dir)
+                tokenizer.save_pretrained(text_embed_path)
+                model.save_pretrained(text_embed_path,group_path)
+            else:
+                tokenizer.save_pretrained(training_args.output_dir)
+                model.save_pretrained(training_args.output_dir)
+
         if training_args.do_eval:
             test_files = tf.io.gfile.glob(data_args.test_files)
             raw_test_data = tf.data.TFRecordDataset(test_files, num_parallel_reads=tf.data.AUTOTUNE)

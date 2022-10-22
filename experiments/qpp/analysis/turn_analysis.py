@@ -14,7 +14,7 @@ DEFAULT_QPP_RES_DIR="/lv_local/home/tomergur/convo_search_project/data/qpp/topic
 DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG","NQC","clarity","bert_qpp","bert_qpp_or_quac"]
 DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm","clarity_norm","bert_qpp"]
 REWRITE_METHODS=['t5','all','hqe','quretec']
-#REWRITE_METHODS=['all','hqe']
+#REWRITE_METHODS=['t5']
 
 METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC","bert_qpp":"Bert QPP",
                      "bert_qpp_or_quac":"Bert QPP fine-tuned on Or QUAC",
