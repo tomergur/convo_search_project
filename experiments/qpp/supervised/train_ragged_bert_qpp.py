@@ -74,6 +74,7 @@ class DataArguments:
     from_pt: bool = False
     early_stop: bool = False
     groupwise_model: bool = True
+    group_agg_func: str =None
     use_mse: bool = False
 
 
@@ -83,6 +84,7 @@ if __name__ == "__main__":
     # Create a description of the features.
     model_name_or_path = data_args.model_name_or_path
     # model_name="bert-base-uncased"
+    assert((data_args.group_agg_func and data_args.use_mse) or (not data_args.group_agg_func))
     run_name = training_args.run_name.split("/")[-2] if "/" in training_args.run_name else training_args.run_name
     if not os.path.exists(training_args.output_dir):
         os.mkdir(training_args.output_dir)

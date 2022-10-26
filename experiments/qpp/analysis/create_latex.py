@@ -13,34 +13,42 @@ DEFAULT_COL='or_quac'
 DEFAULT_RES_DIR="rerank_kld_100"
 DEFAULT_QPP_RES_DIR="/lv_local/home/tomergur/convo_search_project/data/qpp/topic_comp/"
 DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG","NQC","clarity","bert_qpp","bert_qpp_or_quac"]
-DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm","clarity_norm","bert_qpp","bert_qpp_hist","bert_qpp_prev","many_turns_bert_qpp","many_turns_bert_qpp_hist"]
+DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm","clarity_norm","bert_qpp","many_turns_bert_qpp","bert_qpp_hist","many_turns_bert_qpp_hist","bert_qpp_prev","many_turns_bert_qpp_prev"]
 #DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","WIG_norm","NQC_norm","clarity_norm"]
 '''
 DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm",
                            "clarity_norm","bert_qpp_or_quac","bert_qpp_topiocqa","bert_qpp_hist_or_quac","bert_qpp_hist_topiocqa"]
 '''
 REWRITE_METHODS=['t5','all','hqe','quretec']
-#REWRITE_METHODS=['all','hqe']
+REWRITE_METHODS=['all','quretec']
 TWO_DIGITS_METRICS = ["PA","TPA"]
 
 QPP_EVAL_METRIC=["TPA","PA"]
-QPP_EVAL_METRIC=["sturn_0_pearson","sturn_5_pearson","sturn_10_pearson"]
 QPP_EVAL_METRIC=["pearson"]
 QPP_EVAL_METRIC=["pearson","kendall"]
-QPP_EVAL_METRIC=["TPA","turn_pearson","turn_kendall"]
 
-#QPP_EVAL_METRIC=["sturn_1_kendall","sturn_5_kendall","sturn_10_kendall"]
+
+QPP_EVAL_METRIC=["sturn_1_pearson","sturn_5_pearson","sturn_10_pearson"]
+QPP_EVAL_METRIC=["sturn_0_kendall","sturn_4_kendall","sturn_8_kendall"]
+#QPP_EVAL_METRIC=["sturn_1_kendall","sturn_5_kendall","sturn_9_kendall"]
+#QPP_EVAL_METRIC=["TPA","turn_pearson","turn_kendall"]
+
 
 METRICS_DISPLAY_NAME={"turn_pearson":"T$\\rho$","turn_kendall":"TK","sturn_0_pearson":"$T_{1}\\rho$",
-                      "sturn_1_pearson":"$T_{1}\\rho$","sturn_5_pearson":"$T_{5}\\rho$",
-                      "sturn_10_pearson":"T_{10}$\\rho$","sturn_0_kendall":"$T_{1}K$","sturn_1_kendall":"$T_{1}K$"
-                         ,"sturn_5_kendall":"$T_{5}K$","sturn_10_kendall":"$T_{10}K$"}
+                      "sturn_1_pearson":"$T_{1}\\rho$","sturn_4_pearson":"$T_{5}\\rho$","sturn_5_pearson":"$T_{5}\\rho$",
+                      "sturn_9_pearson":"T_{10}$\\rho$","sturn_10_pearson":"T_{10}$\\rho$","sturn_0_kendall":"$T_{1}K$",
+                      "sturn_1_kendall":"$T_{1}K$","sturn_4_kendall":"$T_{5}K$","sturn_5_kendall":"$T_{5}K$",
+                      "sturn_9_kendall":"$T_{9}K$","sturn_8_kendall":"$T_{9}K$"}
 
 METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC","bert_qpp":"Bert QPP",
                      "bert_qpp_or_quac":"Bert QPP fine-tuned on Or QUAC",
                      "bert_qpp_topiocqa":"Bert QPP fine-tuned on TopioCQA",
-                     "bert_qpp_hist":"Bert QPP+history","bert_qpp_hist_or_quac":"Bert QPP+history fine-tuned on Or QUAC",
-                     "bert_qpp_hist_topiocqa":"Bert QPP+history fine-tuned on TopioCQA"}
+                     "bert_qpp_hist":"Bert QPP+ raw history","bert_qpp_hist_or_quac":"Bert QPP+history fine-tuned on Or QUAC",
+                     "bert_qpp_hist_topiocqa":"Bert QPP+history fine-tuned on TopioCQA",
+                     "bert_qpp_prev":"Bert QPP+previous queries",
+                     "many_turns_bert_qpp":"dialogue groupwise QPP",
+                     "many_turns_bert_qpp_hist": "dialogue groupwise QPP+raw history",
+                     "many_turns_bert_qpp_prev": "dialogue groupwise QPP+previous queries"}
 
 def is_oracle(method_name):
     return ('manual' in method_name) or ('oracle' in method_name)
@@ -65,10 +73,8 @@ def annotate_result(result, method_name, metric_name, col_res, t_col_res):
     return results_str
 
 
-def get_method_row(method_name, res_dict, columns, sub_columns, tt_res={}):
-    res = method_name
-    res = METHOD_DISPLAY_NAME.get(res, res.replace("_"," "))
-    # res=res.replace("_"," ")
+def get_method_row(method_name, res_dict, columns, sub_columns,table_type, tt_res={}):
+    res = METHOD_DISPLAY_NAME.get(method_name, method_name.replace("_"," ")) if table_type!='right' else ''
     for col in columns:
         res += '&'
         col_res = res_dict[col]
@@ -77,20 +83,24 @@ def get_method_row(method_name, res_dict, columns, sub_columns, tt_res={}):
         values_str = '&'.join(values)
         res += values_str
     res += '\\\\ \\hline'
+    # remove trailing &
+    if table_type=='right':
+        res=res[1:]
     return res
 
-def calc_table_header(columns, sub_columns):
-    res = '||l | '
+def calc_table_header(columns, sub_columns,table_type):
+    res = '||m{12em} | ' if table_type!="right" else '|'
     collection_columns = ' '.join(['c'] * len(sub_columns))
     res += '|'.join([collection_columns] * len(columns))
     res += ' |'
     return res
 
-def get_column_row(columns, sub_columns):
+def get_column_row(columns, sub_columns,table_type):
     METHOD_COLUMN_NAME="predictor"
     if len(sub_columns)==1:
-        return "&".join([METHOD_COLUMN_NAME]+columns)+"\\\\ \\hline"
-    res = '\multirow{2}{4em}{' + METHOD_COLUMN_NAME + '} & '
+        col_list=[METHOD_COLUMN_NAME]+columns if table_type!='right' else columns
+        return "&".join(col_list)+"\\\\ \\hline"
+    res = '\multirow{2}{4em}{' + METHOD_COLUMN_NAME + '} & ' if table_type!='right' else ''
     columns_num = len(sub_columns)
     multi_cols = ['\multicolumn{' + str(columns_num) + '}{|c|}{' + col + '}' for col in columns]
     res += ' & '.join(multi_cols) + '\\\\ \cline{2-' + str(1 + columns_num * len(columns)) + '}'
@@ -103,21 +113,21 @@ def get_table_columns_names(columns, sub_columns):
     res += '\\\\ \\hline'
     return res
 
-def result_to_latex(res_dict,output_path):
+def result_to_latex(res_dict,output_path,table_type):
     with open(output_path, 'w') as output:
         print('\\begin{center}', file=output)
         column_names=list(res_dict.keys())
         row_names=list(res_dict[column_names[0]].keys())
         sub_columns_names=list(res_dict[column_names[0]][row_names[0]].keys())
-        table_header = calc_table_header(column_names, sub_columns_names)
+        table_header = calc_table_header(column_names, sub_columns_names,table_type)
         print('\\begin{tabular}{' + table_header + '} \\hline', file=output)
-        table_collections_row = get_column_row(column_names, sub_columns_names)
+        table_collections_row = get_column_row(column_names, sub_columns_names,table_type)
         print(table_collections_row, file=output)
         if len(sub_columns_names)>1:
             table_col_names_line = get_table_columns_names(column_names, sub_columns_names)
             print(table_col_names_line, file=output)
         for row_name in row_names:
-            print(get_method_row(row_name, res_dict, column_names, sub_columns_names,{}), file=output)
+            print(get_method_row(row_name, res_dict, column_names, sub_columns_names,table_type,{}), file=output)
         print('\\end{tabular}', file=output)
         print('\\end{center}', file=output)
 
@@ -130,7 +140,7 @@ if __name__ == "__main__":
     parser.add_argument("--qpp_res_dir_base",default=DEFAULT_QPP_RES_DIR)
     parser.add_argument("--corr_type",default="pearson")
     parser.add_argument("--min_turn_samples",type=int,default=0)
-    parser.add_argument("--table_type",default="pairwise_acc")
+    parser.add_argument("--table_type",default="normal")
     parser.add_argument("--output_file_name",default="latex_res.txt")
     args=parser.parse_args()
     metric=args.metric
@@ -175,7 +185,7 @@ if __name__ == "__main__":
             print("feature value calc:", time.time() - start_time)
             latex_res[rewrite_method][feature] = feature_eval
     output_file="{}/{}".format(out_dir,output_file_name)
-    result_to_latex(latex_res,output_file)
+    result_to_latex(latex_res,output_file,table_type)
 
 
 

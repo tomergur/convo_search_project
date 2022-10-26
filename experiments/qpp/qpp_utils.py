@@ -123,11 +123,11 @@ def calc_topic_turn_corr(feature_values, labels, corr_type="pearson",min_queries
             turns_labels[cur_tid]={}
         turns_labels[cur_tid][qid]=labels[qid]
     #print({k:len(v) for k,v in turns_labels.items()})
-    turn_corr=[calc_topic_corr(feature_values,turn_labels,corr_type=corr_type) for turn_labels in turns_labels.values() if len(turn_labels)>=min_queries]
-    turn_corr=[x for x in turn_corr if not math.isnan(x)]
+    turn_corr=[(calc_topic_corr(feature_values,turn_labels,corr_type=corr_type) ,len(turn_labels)) for turn_labels in turns_labels.values() if len(turn_labels)>=min_queries]
+    turn_corr=[x for x in turn_corr if not math.isnan(x[0])]
     #print(turn_corr)
-
-    return np.mean(turn_corr)
+    return np.average([x[0] for x in turn_corr],weights=[x[1] for x in turn_corr])
+    #return np.mean(turn_corr)
 
 
 def calc_topic_pairwise_acc(feature_values, labels, cmp_per_turn=True):

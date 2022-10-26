@@ -4,10 +4,18 @@ from transformers import TFAutoModel,TFAutoModelForTokenClassification
 import h5py
 from tensorflow.python.keras.saving import hdf5_format
 class GroupwiseBert(tf.keras.Model):
-    def __init__(self,text_bert,group_bert):
+    def __init__(self,text_bert,group_bert,agg_func=None):
         super(GroupwiseBert, self).__init__()
         self.text_bert=text_bert
         self.group_bert=group_bert
+        if agg_func=="max":
+            self.agg_func=tf.reduce_max
+        elif agg_func=="mean":
+            self.agg_func=tf.reduce_mean
+        elif agg_func=="first":
+            self.agg_func=lambda x:x[0,0]
+        else:
+            self.agg_func=None
         #self.group_bert.layers[0].embeddings.word_embeddings.trainable=False
 
     @staticmethod
@@ -29,6 +37,8 @@ class GroupwiseBert(tf.keras.Model):
         res=self.group_bert(group_inputs,training=training)
         #res = self.group_bert(inputs_embeds=text_emb, training=training)
         group_res=tf.squeeze(res.logits,0)
+        if self.agg_func:
+            return self.agg_func(group_res)
         return group_res
 
     def save_pretrained(self, text_embed_path,group_path):

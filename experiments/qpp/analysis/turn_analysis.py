@@ -19,8 +19,12 @@ REWRITE_METHODS=['t5','all','hqe','quretec']
 METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC","bert_qpp":"Bert QPP",
                      "bert_qpp_or_quac":"Bert QPP fine-tuned on Or QUAC",
                      "bert_qpp_topiocqa":"Bert QPP fine-tuned on TopioCQA",
-                     "bert_qpp_hist":"Bert QPP+history","bert_qpp_hist_or_quac":"Bert QPP+history fine-tuned on Or QUAC",
-                     "bert_qpp_hist_topiocqa":"Bert QPP+history fine-tuned on TopioCQA"}
+                     "bert_qpp_hist":"Bert QPP+ raw history","bert_qpp_hist_or_quac":"Bert QPP+history fine-tuned on Or QUAC",
+                     "bert_qpp_hist_topiocqa":"Bert QPP+history fine-tuned on TopioCQA",
+                     "bert_qpp_prev":"Bert QPP+previous queries",
+                     "many_turns_bert_qpp":"dialogue groupwise QPP",
+                     "many_turns_bert_qpp_hist": "dialogue groupwise QPP+raw history",
+                     "many_turns_bert_qpp_prev": "dialogue groupwise QPP+previous queries"}
 
 def create_ret_turn_graph(ret_res,out_dir,metric):
     ret_file_name = "{}/turn_ret_performance_{}.png".format(out_dir, metric)
@@ -35,6 +39,7 @@ def create_ret_turn_graph(ret_res,out_dir,metric):
     plt.legend()
     plt.savefig(ret_file_name)
     plt.close()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
     parser.add_argument("--metric", default="recip_rank")
@@ -66,7 +71,7 @@ if __name__ == "__main__":
         os.mkdir(out_dir)
     features_turns_corrs = {}
     ret_res={rewrite_method:[] for rewrite_method in REWRITE_METHODS}
-    fig, axs = plt.subplots(2, 2,sharex=True,sharey=True,figsize=(15,8))
+    fig, axs = plt.subplots(2, 2,sharex=False,sharey=True,figsize=(15,8))
     for j,rewrite_method in enumerate(REWRITE_METHODS):
 
         print("turn analysis for:",rewrite_method)
@@ -81,6 +86,10 @@ if __name__ == "__main__":
         #print(eval_df[eval_df.metric.str.startswith(metric)].groupby("value").count())
         all_qids=list(method_label.keys())
         all_labels = [method_label[qid] for qid in all_qids]
+        print("num non zero:",len([x for x in all_labels if x>0]))
+        print("num less than 0.1 :", len([x for x in all_labels if x < 0.1 and x>0]))
+        print("num less than 0.05 :", len([x for x in all_labels if x < 0.05 and x>0]))
+
         features_turns_corrs[rewrite_method]={}
         qids={}
         for i in range(17):

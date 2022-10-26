@@ -55,6 +55,57 @@ RES_PATH = "/v/tomergur/convo/res"
 EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval"
 INDEXES_DIR = "/v/tomergur/convo/indexes"
 DEFAULT_LABEL=None
+VALID_DATASET_MODES=["dialogue","many_docs"]
+
+def create_many_docs_dataset(data_to_tokenize,max_rows_per_file):
+    j = 0
+    file_idx = 1
+    for qid, (query, q_passages, label) in data_to_tokenize.items():
+        if label is None:
+            print("missing label")
+            continue
+        if j % 100 == 0:
+            print("num serialized:", j)
+        if j % max_rows_per_file == 0:
+            writer = tf.io.TFRecordWriter(output_path_format.format(file_idx))
+            file_idx += 1
+        j += 1
+        queries=[query]*len(passages)
+        labels=[label]
+        serialize_dataset_row(queries, passages, labels, tokenizer, writer)
+
+def create_dialogue_dataset(data_to_tokenize,max_rows_per_file,split_token):
+    j = 0
+    file_idx = 1
+    for qid, (query, q_passages, label) in data_to_tokenize.items():
+        if label is None:
+            print("missing label")
+            continue
+        sid, tid = qid.split(split_token)
+        if int(tid) < max_turn.get(sid):
+            continue
+        if j % 100 == 0:
+            print("num serialized:", j)
+        if j % max_rows_per_file == 0:
+            writer = tf.io.TFRecordWriter(output_path_format.format(file_idx))
+            file_idx += 1
+        j += 1
+        queries = []
+        passages = []
+        labels = []
+        for i in range(first_tid, int(tid)):
+            cur_turn_qid = sid + split_token + str(i)
+            if cur_turn_qid in data_to_tokenize:
+                cur_query, cur_psgs, turn_label = data_to_tokenize[cur_turn_qid]
+                queries.append(cur_query)
+                passages.append(cur_psgs[0])
+                labels.append(turn_label)
+        labels.append(label)
+        queries.append(query)
+        passages.append(q_passages[0])
+        serialize_dataset_row(queries, passages, labels, tokenizer, writer)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_name', required=True,
@@ -68,6 +119,8 @@ if __name__ == "__main__":
     parser.add_argument("--is_rerank", action='store_true', default=False)
     parser.add_argument("--append_history", action='store_true', default=False)
     parser.add_argument("--append_prev_turns", action='store_true', default=False)
+    parser.add_argument("--dataset_mode",default="dialogue")
+    parser.add_argument("--top_docs",type=int,default=1)
 
     # parser.add_argument('--qrel_path',default=QREL_PATH)
     args = parser.parse_args()
@@ -80,6 +133,9 @@ if __name__ == "__main__":
     append_history = args.append_history
     append_prev_turns = args.append_prev_turns
     assert (not (append_history and append_prev_turns))
+    dataset_mode=args.dataset_mode
+    assert(dataset_mode in VALID_DATASET_MODES)
+    top_docs=args.top_docs
     query_field_name = "second_stage_queries" if args.is_rerank else 'first_stage_rewrites'
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=True)
     input_file = "{}/{}/{}/{}_queries.json".format(RES_PATH, setting_name, col, run_name)
@@ -92,7 +148,6 @@ if __name__ == "__main__":
     run_file = "{}/{}/{}/{}_run.txt".format(RES_PATH, setting_name, col, run_name)
     runs = pd.read_csv(run_file, header=None, names=["qid", "Q0", "docid", "ranks", "score", "info"],
                        delimiter="\t", dtype={"docid": str})
-    file_idx = 1
     eval_file = "{}/{}/{}/{}.txt".format(EVAL_PATH, setting_name, col, run_name)
     eval_res = pd.read_csv(eval_file, header=None, names=["metric", "qid", "value"], delimiter="\t")
     eval_res = eval_res[eval_res.metric.str.startswith(metric)]
@@ -101,7 +156,9 @@ if __name__ == "__main__":
     print("num labeled",len(metrics_values),"num queries:",len(queries))
     searcher = SimpleSearcher("{}/{}".format(INDEXES_DIR, col))
     # unique for bert qpp
-    top_docs = runs[runs.ranks == 1].set_index("qid").docid.to_dict()
+    #top_docs = runs[runs.ranks == 1].set_index("qid").docid.to_dict()
+    top_docs_df=runs[runs.ranks <= top_docs]
+    top_docs ={qid: q_top_docs.docid.to_list() for qid,q_top_docs in top_docs_df.groupby('qid')}
     data_to_tokenize={}
     max_turn={}
     for i, (qid, query_json) in enumerate(queries.items()):
@@ -125,36 +182,12 @@ if __name__ == "__main__":
             print("not serilazing qid:",qid)
             continue
         max_turn[sid] = max(int(tid), max_turn.get(sid, 0))
-        top_doc_id = top_docs[qid]
-        doc = searcher.doc(top_doc_id)
+        top_doc_ids = top_docs[qid]
+        docs = [searcher.doc(top_doc_id) for top_doc_id in top_doc_ids]
         label = metrics_values.get(qid,DEFAULT_LABEL)
-        passage = json.loads(doc.raw())["contents"]
-        data_to_tokenize[qid]=(query,passage,label)
-    j = 0
-    for qid,(query,passage,label) in data_to_tokenize.items():
-        if label is None:
-            print("missing label")
-            continue
-        sid, tid = qid.split(split_token)
-        if int(tid)<max_turn.get(sid):
-            continue
-        if j%100==0:
-            print("num serialized:",j)
-        if j % max_rows_per_file == 0:
-            writer = tf.io.TFRecordWriter(output_path_format.format(file_idx))
-            file_idx += 1
-        j+=1
-        queries=[]
-        passages=[]
-        labels=[]
-        for i in range(first_tid,int(tid)):
-            cur_turn_qid = sid + split_token + str(i)
-            if cur_turn_qid in data_to_tokenize:
-                cur_query,cur_psg,turn_label=data_to_tokenize[cur_turn_qid]
-                queries.append(cur_query)
-                passages.append(cur_psg)
-                labels.append(turn_label)
-        labels.append(label)
-        queries.append(query)
-        passages.append(passage)
-        serialize_dataset_row(queries, passages, labels, tokenizer, writer)
+        passages = [json.loads(doc.raw())["contents"] for doc in docs]
+        data_to_tokenize[qid]=(query,passages,label)
+    if dataset_mode=="many_docs":
+        create_many_docs_dataset(data_to_tokenize,max_rows_per_file)
+    else:
+        create_dialogue_dataset(data_to_tokenize,max_rows_per_file,split_token)

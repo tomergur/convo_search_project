@@ -91,13 +91,9 @@ if __name__ == "__main__":
     input_file = "{}/{}/{}/{}_queries.json".format(RES_PATH, setting_name, col, run_name)
     with open(input_file) as f:
         queries = json.load(f)
-    # TODO: this approach relies on having all queries existing,might be problematic
     if append_history or append_prev_turns:
         split_token = "#" if col == "or_quac" else "_"
         first_tid = 0 if col == "or_quac" else 1
-        history_input_file = "{}/{}/{}/{}_queries.json".format(RES_PATH, setting_name, col, "all")
-        with open(history_input_file) as f:
-            history = json.load(f)
 
     run_file = "{}/{}/{}/{}_run.txt".format(RES_PATH, setting_name, col, run_name)
     runs = pd.read_csv(run_file, header=None, names=["qid", "Q0", "docid", "ranks", "score", "info"],
