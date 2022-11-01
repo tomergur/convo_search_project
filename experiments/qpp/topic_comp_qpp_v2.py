@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 
 from experiments.qpp.qpp_feature_extraction import  QPPFeatureFactory
-from experiments.qpp.qpp_utils import load_data,create_label_dict,create_ctx,topic_evaluate_extractor
+from experiments.qpp.qpp_utils import load_data,create_label_dict,create_ctx,topic_evaluate_extractor,evaluate_topic_predictor
 from experiments.qpp.const import QPP_FEATURES_PARAMS
 
 
@@ -19,7 +19,7 @@ from experiments.qpp.const import QPP_FEATURES_PARAMS
 REWRITE_METHODS=['raw','t5','all','hqe','quretec','manual']
 REWRITE_METHODS=['t5','all','hqe','quretec']
 #REWRITE_METHODS=['t5']
-#REWRITE_METHODS=['all','hqe']
+REWRITE_METHODS=['all','quretec']
 DEFAULT_RES_DIR="kld_100"
 DEFAULT_VALID_DIR="valid_kld_100"
 DEFAULT_RES_DIR="rerank_kld_100"
@@ -56,7 +56,9 @@ if __name__=="__main__":
     parser.add_argument("--query_rewrite_field",default=DEFAULT_QUERY_FIELD)
     parser.add_argument("--cache_results",action='store_true',default=False)
     parser.add_argument("--load_cached_feature",action='store_true',default=False)
+    parser.add_argument("--per_turn_tunning",action='store_true',default=False)
     parser.add_argument("--calc_threshold_predictor",action='store_true',default=False)
+    parser.add_argument("--oracle_tunning",action='store_true',default=False)
     args=parser.parse_args()
     metric = args.metric
     col=args.col
@@ -68,6 +70,8 @@ if __name__=="__main__":
     selected_features=args.features
     query_rewrite_field=args.query_rewrite_field
     calc_threshold_predictor=args.calc_threshold_predictor
+    per_turn_tunning=args.per_turn_tunning
+    oracle_tunning=args.oracle_tunning
     EVAL_VALID_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(valid_dir, col)
     RUNS_VALID_PATH = "/v/tomergur/convo/res/{}/{}".format(valid_dir, col)
     runs_valid, rewrites_valid, rewrites_eval_valid, turns_text_valid = load_data(REWRITE_METHODS, EVAL_VALID_PATH, RUNS_VALID_PATH, query_rewrite_field,
@@ -108,6 +112,10 @@ if __name__=="__main__":
             labels_test=label_dict[method_name]
             method_ctx_test = ctx[method_name]
             method_rewrites_test=rewrites[method_name]
+            if oracle_tunning:
+                method_ctx=method_ctx_test
+                method_rewrites=method_rewrites_test
+                labels=labels_test
 
             # run all scores:
             feature_calc_start_time = time.time()
@@ -118,13 +126,37 @@ if __name__=="__main__":
 
             print([(x, y[0]) for x, y in zip(hp_configs, feature_val_valid)])
             print("valid feature calc time:", time.time() - feature_calc_start_time)
-            corr_valid = [v[0] for v in feature_val_valid]
-            valid_selected_hp = np.argmax(corr_valid)
-            if len(hp_configs) > 0:
-                print(hp_configs[valid_selected_hp])
 
-            selected_extractor=extractors[valid_selected_hp]
-            test_corr,features_val_test=topic_evaluate_extractor(selected_extractor, method_rewrites_test, labels_test, method_ctx_test, True)
+            if per_turn_tunning and len(hp_configs) > 0:
+                values_valid = [v[1] for v in feature_val_valid]
+                qids = list(labels_test.keys())
+                split_token = "#" if len(qids[0].split("#")) > 1 else "_"
+                turns_labels = {}
+                for qid in qids:
+                    cur_tid = qid.split(split_token)[1]
+                    if cur_tid not in turns_labels:
+                        turns_labels[cur_tid] = {}
+                    turns_labels[cur_tid][qid] = labels_test[qid]
+                features_val_test={}
+                for tid,turn_labels in turns_labels.items():
+                    print(tid,"num test labels:",len(turn_labels))
+                    print(tid, "num valid labels:", len({qid: v for qid, v in method_rewrites.items() if qid.split(split_token)[1] == tid}))
+                    valid_turn_corr=[evaluate_topic_predictor(v,labels,"sturn_{}_kendall".format(tid)) for v in values_valid]
+                    print([(x, y) for x, y in zip(hp_configs, valid_turn_corr)])
+                    valid_selected_hp = np.argmax([abs(x) for x in valid_turn_corr])
+                    selected_extractor = extractors[valid_selected_hp]
+                    method_turn_rewrites = {qid: v for qid, v in method_rewrites_test.items() if qid.split(split_token)[1] == tid}
+                    _, turn_val_test = topic_evaluate_extractor(selected_extractor, method_turn_rewrites,turn_labels, method_ctx_test, True,"TPA")
+                    features_val_test.update(turn_val_test)
+                test_corr=evaluate_topic_predictor(features_val_test,labels_test,"turn_kendall")
+            else:
+                corr_valid = [v[0] for v in feature_val_valid]
+                valid_selected_hp = np.argmax([abs(x) for x in corr_valid])
+                if len(hp_configs) > 0:
+                    print(hp_configs[valid_selected_hp])
+                selected_extractor = extractors[valid_selected_hp]
+                test_corr, features_val_test = topic_evaluate_extractor(selected_extractor, method_rewrites_test,
+                                                                        labels_test, method_ctx_test, True)
             corr_res[feature][method_name] = round(test_corr,3)
             if cache_results:
                 if len(hp_configs) == 0:
@@ -135,6 +167,7 @@ if __name__=="__main__":
                         method_cache.append((list(hp_config.items()), f_val[1]))
                     valid_features_cache[method_name] = method_cache
                 feature_cache[method_name]= features_val_test
+            #TODO: remove dead code
             if calc_threshold_predictor:
                 predictor_start_time=time.time()
                 threshold=set_threshold(feature_val_valid[0][1],labels)
@@ -148,10 +181,13 @@ if __name__=="__main__":
                 print("num results",num_res,"num 1 label:",num_label_1)
                 print("predictor calc time:",time.time()-predictor_start_time)
         if cache_results:
-            res_path = "{}/cache/{}_{}.json".format(qpp_res_dir, feature, metric)
+            feature_name=feature if not oracle_tunning else feature+"_oracle"
+            res_path = "{}/cache/{}{}_{}.json".format(qpp_res_dir, feature_name,"_pt" if per_turn_tunning else "", metric)
             with open(res_path, 'w') as f:
                 json.dump(feature_cache,f)
-            valid_res_path = "{}/valid_cache/{}_{}.json".format(qpp_res_dir, feature, metric)
+            if oracle_tunning:
+                continue
+            valid_res_path = "{}/valid_cache/{}.json".format(qpp_res_dir, feature_name)
             with open(valid_res_path, 'w') as f:
                 json.dump(valid_features_cache,f)
 
@@ -162,7 +198,8 @@ if __name__=="__main__":
         cur_row.update(corr_vals)
         r_res.append(cur_row)
         row_df=pd.DataFrame([cur_row])
-        res_path="{}/corr_{}_{}.csv".format(qpp_res_dir,feature,metric)
+        feature_name = feature if not oracle_tunning else feature + "_oracle"
+        res_path="{}/corr_{}{}_{}.csv".format(qpp_res_dir,feature_name,"_pt" if per_turn_tunning else "",metric)
         row_df.to_csv(res_path,index=False)
     r_df = pd.DataFrame(r_res)
     print(r_df)

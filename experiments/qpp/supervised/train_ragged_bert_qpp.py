@@ -74,7 +74,8 @@ class DataArguments:
     from_pt: bool = False
     early_stop: bool = False
     groupwise_model: bool = True
-    group_agg_func: str =None
+    group_agg_func: str = None
+    output_mode : str = None
     use_mse: bool = False
 
 

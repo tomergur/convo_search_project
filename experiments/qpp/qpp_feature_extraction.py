@@ -8,7 +8,7 @@ from .pre_ret_qpp import QueryLen, TurnNumber, MaxIDF, AvgIDF, MaxSCQ, AvgSCQ, M
 from .post_ret_qpp import WIG, Clairty, NQC, NQCNorm, WIGNorm, ClairtyNorm
 from .ref_list_qpp import RefListQPP, HistQPP
 from .cached_qpp import CachedQPP
-from .bert_qpp_infer import BertQPP, GroupwiseBertQPP
+from .bert_qpp_infer import BertQPP, GroupwiseBertQPP ,SingleTurnBertQPP
 from .collection_lm import CollectionLM
 
 
@@ -54,15 +54,12 @@ class QPPFeatureFactory:
         qpp_dict["bert_qpp_topiocqa"] = lambda: BertQPP(self.searcher,
                                                         "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}",
                                                         "topiocqa")
-        # qpp_dict["bert_qpp_hist"] = lambda: BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_hist_rerank/{}_{}", col,True)
         qpp_dict["bert_qpp_hist_or_quac"] = lambda: BertQPP(self.searcher,
                                                             "/v/tomergur/convo/qpp_models/bert_qpp_hist_rerank/{}_{}",
                                                             "or_quac", True)
         qpp_dict["bert_qpp_hist_topiocqa"] = lambda: BertQPP(self.searcher,
                                                              "/v/tomergur/convo/qpp_models/bert_qpp_hist_rerank/{}_{}",
                                                              "topiocqa", True)
-        # qpp_dict["bert_qpp_prev"] = lambda: BertQPP(self.searcher,"/v/tomergur/convo/qpp_models/bert_qpp_prev_rerank/{}_{}", col,append_prev_turns=True)
-        # qpp_dict["many_turns_bert_qpp"] = lambda : GroupwiseBertQPP(self.searcher, "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}/text_embed/","/v/tomergur/convo/qpp_models/many_turns_bert_qpp_rerank/{}_{}/group_model/", col)
         qpp_dict["many_turns_bert_qpp_cls"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
                                                                                  "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank/{}_{}" +
                                                                                  hp_config['suffix'] + "/text_embed/",
@@ -92,6 +89,11 @@ class QPPFeatureFactory:
                                                                              hp_config['suffix'] + "/text_embed/",
                                                                              "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank/{}_{}" +
                                                                              hp_config['suffix'] + "/group_model/", col)
+        qpp_dict["many_turns_bert_qpp_online"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
+                                                                             "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank/{}_{}" +
+                                                                             hp_config['suffix'] + "/text_embed/",
+                                                                             "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank/{}_{}" +
+                                                                             hp_config['suffix'] + "/group_model/", col,output_mode="online")
         qpp_dict["many_turns_bert_qpp_hist"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
                                                                                   "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_hist_rerank/{}_{}" +
                                                                                   hp_config['suffix'] + "/text_embed/",
@@ -104,10 +106,24 @@ class QPPFeatureFactory:
                                                                                   "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_prev_rerank/{}_{}" +
                                                                                   hp_config['suffix'] + "/group_model/",
                                                                                   col, append_prev_turns=True)
+        qpp_dict["many_docs_bert_qpp"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
+                                                                             "/v/tomergur/convo/qpp_models/many_docs_bert_qpp_rerank/{}_{}_" +
+                                                                             hp_config['suffix'] + "/text_embed/",
+                                                                             "/v/tomergur/convo/qpp_models/many_docs_bert_qpp_rerank/{}_{}_" +
+                                                                             hp_config['suffix'] + "/group_model/", col,infer_mode="query", group_agg_func=hp_config['group_agg_func'])
 
         # qpp_dict["bert_qpp_cls"] = lambda hp_config: BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}"+hp_config['suffix'], col)
         # qpp_dict["bert_qpp_reg"] = lambda hp_config: BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}"+hp_config['suffix'], col)
         qpp_dict["bert_qpp"] = lambda hp_config: BertQPP(self.searcher,
+                                                         "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}" +
+                                                         hp_config['suffix'], col)
+        qpp_dict["st_bert_qpp"] = lambda hp_config: SingleTurnBertQPP(self.searcher,
+                                                         "/v/tomergur/convo/qpp_models/single_turn_bert_qpp_rerank/{}_{}_{}" +
+                                                         hp_config['suffix'], col)
+        qpp_dict["bert_qpp_cls"] = lambda hp_config: BertQPP(self.searcher,
+                                                         "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}" +
+                                                         hp_config['suffix'], col)
+        qpp_dict["bert_qpp_reg"] = lambda hp_config: BertQPP(self.searcher,
                                                          "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}" +
                                                          hp_config['suffix'], col)
         qpp_dict["bert_qpp_hist"] = lambda hp_config: BertQPP(self.searcher,
@@ -159,7 +175,7 @@ class QPPFeatureFactory:
         return HistQPP(core_qpp, decay=decay, lambd=lambd, sumnormalize=sumnormalize)
 
     def create_qpp_extractor(self, feature_name, **params):
-
+        '''
         if feature_name.startswith("bert_qpp") and (not feature_name.endswith("qpp")) and (
                 not feature_name.endswith("hist")) and (not feature_name.endswith("prev")) and (
         not feature_name.endswith("hp")):
@@ -167,7 +183,7 @@ class QPPFeatureFactory:
             print("params  stuff", suffix)
             return BertQPP(self.searcher, "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}_" + suffix + "/",
                            self.col)
-        '''
+
         if feature_name.startswith("many_turns_bert_qpp") and (not feature_name.endswith("qpp")) and (
                 not feature_name.endswith("prev")) and (not feature_name.endswith("hist")) and (
                 not feature_name.endswith("reg") and (not feature_name.endswith("cls")):

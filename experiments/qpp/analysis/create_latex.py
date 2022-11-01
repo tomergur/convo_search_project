@@ -13,12 +13,14 @@ DEFAULT_COL='or_quac'
 DEFAULT_RES_DIR="rerank_kld_100"
 DEFAULT_QPP_RES_DIR="/lv_local/home/tomergur/convo_search_project/data/qpp/topic_comp/"
 DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG","NQC","clarity","bert_qpp","bert_qpp_or_quac"]
-DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm","clarity_norm","bert_qpp","many_turns_bert_qpp","bert_qpp_hist","many_turns_bert_qpp_hist","bert_qpp_prev","many_turns_bert_qpp_prev"]
-#DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","WIG_norm","NQC_norm","clarity_norm"]
+DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm","clarity_norm","bert_qpp","many_turns_bert_qpp","many_turns_bert_qpp_online","ref_hist_bert_qpp"]
+DEFAULT_SELECTED_FEATURES=["WIG_norm","WIG_norm_pt","NQC_norm","NQC_norm_pt","clarity_norm","clarity_norm_pt","bert_qpp","bert_qpp_pt"]
 '''
 DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm",
                            "clarity_norm","bert_qpp_or_quac","bert_qpp_topiocqa","bert_qpp_hist_or_quac","bert_qpp_hist_topiocqa"]
 '''
+DEFAULT_SELECTED_FEATURES=["st_bert_qpp_pt","bert_qpp_pt","bert_qpp"]
+
 REWRITE_METHODS=['t5','all','hqe','quretec']
 REWRITE_METHODS=['all','quretec']
 TWO_DIGITS_METRICS = ["PA","TPA"]
@@ -47,8 +49,10 @@ METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC",
                      "bert_qpp_hist_topiocqa":"Bert QPP+history fine-tuned on TopioCQA",
                      "bert_qpp_prev":"Bert QPP+previous queries",
                      "many_turns_bert_qpp":"dialogue groupwise QPP",
+                     "many_turns_bert_qpp_online": "dialogue groupwise QPP - online inference",
                      "many_turns_bert_qpp_hist": "dialogue groupwise QPP+raw history",
-                     "many_turns_bert_qpp_prev": "dialogue groupwise QPP+previous queries"}
+                     "many_turns_bert_qpp_prev": "dialogue groupwise QPP+previous queries",
+                     "ref_hist_bert_qpp":"Bert QPP - previous turns as reference lists"}
 
 def is_oracle(method_name):
     return ('manual' in method_name) or ('oracle' in method_name)

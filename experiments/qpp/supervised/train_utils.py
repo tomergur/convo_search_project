@@ -12,7 +12,7 @@ def create_model(model_name, data_args):
         else:
             group_conf = BertConfig(num_hidden_layers=4, num_labels=num_classes)
             group_model=TFBertForTokenClassification(group_conf)
-        return GroupwiseBert(model,group_model,data_args.group_agg_func)
+        return GroupwiseBert(model,group_model,data_args.group_agg_func,data_args.output_mode)
     model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt, num_labels=num_classes)
     return model
 

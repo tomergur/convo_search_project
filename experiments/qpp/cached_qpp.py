@@ -23,5 +23,7 @@ class CachedQPP:
         method_name=ctx["method"]
         qid=ctx["qid"]
         if qid not in self.cached_feature[method_name]:
-            return self.predictor.calc_qpp_feature(query,**ctx)
+            res=self.predictor.calc_qpp_feature(query,**ctx)
+            self.cached_feature[method_name][qid]=res
+            return res
         return self.cached_feature[method_name][qid]

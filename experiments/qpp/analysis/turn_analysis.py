@@ -14,7 +14,7 @@ DEFAULT_QPP_RES_DIR="/lv_local/home/tomergur/convo_search_project/data/qpp/topic
 DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG","NQC","clarity","bert_qpp","bert_qpp_or_quac"]
 DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm","clarity_norm","bert_qpp"]
 REWRITE_METHODS=['t5','all','hqe','quretec']
-#REWRITE_METHODS=['t5']
+REWRITE_METHODS=['all','quretec']
 
 METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC","bert_qpp":"Bert QPP",
                      "bert_qpp_or_quac":"Bert QPP fine-tuned on Or QUAC",
@@ -71,7 +71,8 @@ if __name__ == "__main__":
         os.mkdir(out_dir)
     features_turns_corrs = {}
     ret_res={rewrite_method:[] for rewrite_method in REWRITE_METHODS}
-    fig, axs = plt.subplots(2, 2,sharex=False,sharey=True,figsize=(15,8))
+    #fig, axs = plt.subplots(2, 2,sharex=False,sharey=True,figsize=(15,8))
+    fig, axs = plt.subplots(2, sharex=False, sharey=True, figsize=(15, 8))
     for j,rewrite_method in enumerate(REWRITE_METHODS):
 
         print("turn analysis for:",rewrite_method)
@@ -88,7 +89,8 @@ if __name__ == "__main__":
         all_labels = [method_label[qid] for qid in all_qids]
         print("num non zero:",len([x for x in all_labels if x>0]))
         print("num less than 0.1 :", len([x for x in all_labels if x < 0.1 and x>0]))
-        print("num less than 0.05 :", len([x for x in all_labels if x < 0.05 and x>0]))
+        print("prec smaller than 0.01",len([x for x in all_labels if x < 0.1 and x>0])/len(all_labels))
+        #print("num less than 0.05 :", len([x for x in all_labels if x < 0.05 and x>0]))
 
         features_turns_corrs[rewrite_method]={}
         qids={}
@@ -136,7 +138,7 @@ if __name__ == "__main__":
 
         cur_ax = axs.flat[j]
         cur_ax.set_title(rewrite_method, fontsize=16)
-        cur_ax.label_outer()
+        #cur_ax.label_outer()
         for feature in features:
             num_turns =len(features_turns_corrs[feature])
             cur_ax.plot(range(1,num_turns+1),features_turns_corrs[feature],'o-',
@@ -175,6 +177,7 @@ if __name__ == "__main__":
 
     fig.supxlabel("turn number", fontsize=16)
     fig.supylabel(corr_type, fontsize=16)
+    fig.suptitle(col,fontsize=18)
     file_name = "{}/{}_{}_{}.png".format(out_dir, graph_name, corr_type, metric)
     plt.savefig(file_name,dpi=180)
     plt.close()

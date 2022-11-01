@@ -69,6 +69,7 @@ def create_ctx(runs, rewrites, turns_text, col="cast19"):
     ctx = {}
     REWRITE_REF_LIST = ["t5", "all", "hqe", "quretec"]
     #REWRITE_REF_LIST=["t5"]
+    REWRITE_REF_LIST = ["all","quretec"]
     res_lists = {}
     for method_name, method_runs in runs.items():
         res_lists[method_name] = {qid: list(zip(q_run.docid.tolist(), q_run.score.tolist())) for qid, q_run in
@@ -155,6 +156,8 @@ def calc_topic_pairwise_acc(feature_values, labels, cmp_per_turn=True):
         feature2 = feature_values[qid2]
         if (label > label2 and feature >= feature2) or (label < label2 and feature <= feature2):
             true_pairs += 1
+    if num_pairs==0:
+        return 0, num_pairs
     return round(true_pairs / num_pairs, 2), num_pairs
 
 
@@ -188,15 +191,15 @@ def evaluate_topic_predictor(feature_values, labels, corr_type="pearson"):
 
 
 
-def topic_evaluate_extractor(extractor, rewrites, labels, ctx, return_raw_feature=False):
+def topic_evaluate_extractor(extractor, rewrites, labels, ctx, return_raw_feature=False,corr_type="turn_kendall"):
     #TODO: maybe use metaclass
     if hasattr(extractor,'calc_qpp_features'):
         feature_res=extractor.calc_qpp_features(rewrites,ctx)
     else:
         feature_res = {qid: extractor.calc_qpp_feature(q, **ctx[qid]) for qid, q in
                    rewrites.items() if qid in ctx}
-    #corr = calc_topic_corr(feature_res, labels)
-    corr,_ = calc_topic_pairwise_acc(feature_res, labels)
+    corr = evaluate_topic_predictor(feature_res, labels,corr_type)
+    #corr,_ = calc_topic_pairwise_acc(feature_res, labels)
     if return_raw_feature:
         return corr, feature_res
     return corr
