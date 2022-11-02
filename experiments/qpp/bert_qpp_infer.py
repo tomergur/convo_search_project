@@ -62,11 +62,12 @@ class SingleTurnBertQPP:
             turn_qids[tid]=cur_turn
         cur_method = ctx[qids[0]]["method"]
         res={qid:random.random() for qid in qids}
+        col_add=1 if self.col=="or_quac" else 0
         for tid,t_qids in turn_qids.items():
-            if tid not in [0,4,8]:
+            if tid+col_add not in [1,5,9]:
                 continue
             print("run turn",tid)
-            model_path = self.model_name_or_path_pattern.format(self.col, cur_method,tid+1)
+            model_path = self.model_name_or_path_pattern.format(self.col, cur_method,tid+col_add)
             self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
             self.model = TFAutoModelForSequenceClassification.from_pretrained(model_path)
             for qid in t_qids:

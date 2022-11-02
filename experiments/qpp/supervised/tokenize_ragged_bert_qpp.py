@@ -82,8 +82,12 @@ def create_dialogue_dataset(data_to_tokenize,max_rows_per_file,split_token,selec
             print("missing label")
             continue
         sid, tid = qid.split(split_token)
-        if int(tid) < max_turn.get(sid):
+        if (selected_tid is None) and int(tid) < max_turn.get(sid):
             continue
+        if selected_tid and tid!=selected_tid:
+            #print(tid,selected_tid)
+            continue
+        print(qid)
         if j % 100 == 0:
             print("num serialized:", j)
         if j % max_rows_per_file == 0:
@@ -101,6 +105,8 @@ def create_dialogue_dataset(data_to_tokenize,max_rows_per_file,split_token,selec
                 passages.append(cur_psgs[0])
                 labels.append(turn_label)
         labels.append(label)
+        if selected_tid:
+            labels=[label]
         queries.append(query)
         passages.append(q_passages[0])
         serialize_dataset_row(queries, passages, labels, tokenizer, writer)
@@ -120,6 +126,7 @@ if __name__ == "__main__":
     parser.add_argument("--append_history", action='store_true', default=False)
     parser.add_argument("--append_prev_turns", action='store_true', default=False)
     parser.add_argument("--dataset_mode",default="dialogue")
+    parser.add_argument("--selected_tid",default=None)
     parser.add_argument("--top_docs",type=int,default=1)
 
     # parser.add_argument('--qrel_path',default=QREL_PATH)
@@ -136,6 +143,7 @@ if __name__ == "__main__":
     dataset_mode=args.dataset_mode
     assert(dataset_mode in VALID_DATASET_MODES)
     top_docs=args.top_docs
+    selected_tid=args.selected_tid
     query_field_name = "second_stage_queries" if args.is_rerank else 'first_stage_rewrites'
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=True)
     input_file = "{}/{}/{}/{}_queries.json".format(RES_PATH, setting_name, col, run_name)
@@ -177,7 +185,7 @@ if __name__ == "__main__":
                 # hist=history[last_turn_qid][query_field_name][0]
                 raw_query = " [SEP] ".join(hist + [raw_query])
         query = truncate_query(raw_query, tokenizer)
-        print(qid,"rewritten query",query)
+        #print(qid,"rewritten query",query)
         if qid not in metrics_values:
             print("not serilazing qid:",qid)
             continue
@@ -190,4 +198,4 @@ if __name__ == "__main__":
     if dataset_mode=="many_docs":
         create_many_docs_dataset(data_to_tokenize,max_rows_per_file)
     else:
-        create_dialogue_dataset(data_to_tokenize,max_rows_per_file,split_token)
+        create_dialogue_dataset(data_to_tokenize,max_rows_per_file,split_token,selected_tid)

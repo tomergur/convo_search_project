@@ -53,7 +53,9 @@ class GroupwiseBert(tf.keras.Model):
             return self.online_output(text_emb,training)
         group_inputs={'inputs_embeds':text_emb}
         res=self.group_bert(group_inputs,training=training)
-        group_res=tf.squeeze(res.logits,0)
+        #print(tf.shape(res.logits))
+        #group_res=tf.squeeze(res.logits,0)
+        group_res = res.logits
         if self.agg_func:
             return self.agg_func(group_res)
         return group_res
