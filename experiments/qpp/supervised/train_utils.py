@@ -1,5 +1,5 @@
 from transformers import TFAutoModelForSequenceClassification,TFAutoModel,TFAutoModelForTokenClassification
-from transformers.models.bert import BertConfig,TFBertForTokenClassification
+from transformers.models.bert import BertConfig,TFBertForTokenClassification,TFBertForSequenceClassification
 from experiments.qpp.supervised.groupwise_model import GroupwiseBert
 import tensorflow as tf
 
@@ -11,7 +11,7 @@ def create_model(model_name, data_args):
             group_model=TFAutoModelForTokenClassification.from_pretrained(data_args.group_model_name_or_path,from_pt=True,num_hidden_layers=4, num_labels=num_classes)
         else:
             group_conf = BertConfig(num_hidden_layers=4, num_labels=num_classes)
-            group_model=TFBertForTokenClassification(group_conf)
+            group_model=TFBertForSequenceClassification(group_conf)
         return GroupwiseBert(model,group_model,data_args.group_agg_func,data_args.output_mode)
     model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt, num_labels=num_classes)
     return model

@@ -74,7 +74,7 @@ def create_many_docs_dataset(data_to_tokenize,max_rows_per_file):
         labels=[label]
         serialize_dataset_row(queries, passages, labels, tokenizer, writer)
 
-def create_dialogue_dataset(data_to_tokenize,max_rows_per_file,split_token):
+def create_dialogue_dataset(data_to_tokenize,max_rows_per_file,split_token,selected_tid=None):
     j = 0
     file_idx = 1
     for qid, (query, q_passages, label) in data_to_tokenize.items():

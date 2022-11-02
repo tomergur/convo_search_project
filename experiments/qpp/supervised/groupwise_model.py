@@ -1,5 +1,5 @@
 import tensorflow as tf
-from transformers import TFAutoModel,TFAutoModelForTokenClassification
+from transformers import TFAutoModel,TFAutoModelForTokenClassification,TFAutoModelForSequenceClassification
 
 import h5py
 from tensorflow.python.keras.saving import hdf5_format
@@ -15,6 +15,8 @@ class GroupwiseBert(tf.keras.Model):
             self.agg_func=tf.reduce_mean
         elif agg_func=="first":
             self.agg_func=lambda x:x[0,0]
+        elif agg_func=="last":
+            self.agg_func=lambda x:x[0,-1]
         else:
             self.agg_func=None
         #self.group_bert.layers[0].embeddings.word_embeddings.trainable=False
@@ -26,7 +28,7 @@ class GroupwiseBert(tf.keras.Model):
         # "groupwise_bert"
 
         with tf.name_scope("groupwise_bert") as scope:
-            group_model=TFAutoModelForTokenClassification.from_pretrained(group_model_path)
+            group_model=TFAutoModelForSequenceClassification.from_pretrained(group_model_path)
 
         return GroupwiseBert(text_model,group_model,group_agg_func,output_mode=output_mode)
 
@@ -38,7 +40,8 @@ class GroupwiseBert(tf.keras.Model):
         att_mask=tf.linalg.band_part(att_mask, -1, -0)
         group_inputs={'inputs_embeds':rep_text_emb,'attention_mask':att_mask}
         res=self.group_bert(group_inputs,training=training)
-        return tf.gather(res.logits,indices=range(seq_length),axis=1,batch_dims=1)
+        #tf.gather(res.logits, indices=range(seq_length), axis=1, batch_dims=1)
+        return res.logits
 
 
 
