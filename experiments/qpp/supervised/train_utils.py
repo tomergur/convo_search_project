@@ -14,12 +14,12 @@ def create_model(model_name, data_args):
                                                                           num_labels=num_classes)
             group_model = TFBertForSequenceClassification(
                 data_args.group_model_name_or_path, from_pt=True, num_hidden_layers=4,
-                num_labels=num_classes) if data_args.output_mode == "online_seq" else TFBertForTokenClassification(
+                num_labels=num_classes) if "seq" in data_args.output_mode else TFBertForTokenClassification(
                 data_args.group_model_name_or_path, from_pt=True, num_hidden_layers=4, num_labels=num_classes)
         else:
             group_conf = BertConfig(num_hidden_layers=4, num_labels=num_classes)
             group_model = TFBertForSequenceClassification(
-                group_conf) if data_args.output_mode == "online_seq" else TFBertForTokenClassification(group_conf)
+                group_conf) if "seq" in data_args.output_mode  else TFBertForTokenClassification(group_conf)
         return GroupwiseBert(model, group_model, data_args.group_agg_func, data_args.output_mode)
     model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt,
                                                                  num_labels=num_classes)
