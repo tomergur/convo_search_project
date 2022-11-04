@@ -54,9 +54,9 @@ def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_funct
         max_train_size = max_steps * batch_size
         print("number of train samples:", max_train_size)
         train_dataset = train_dataset.take(max_train_size)
-    #return train_dataset.batch(batch_size)
+    return train_dataset.batch(batch_size)
     #.map(lambda x,y:pad_data(x,y,16))
-    return train_dataset
+    #return train_dataset
 
 
 @dataclass
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     # Create a description of the features.
     model_name_or_path = data_args.model_name_or_path
     # model_name="bert-base-uncased"
-    assert((data_args.group_agg_func and data_args.use_mse) or (not data_args.group_agg_func))
+    #assert((data_args.group_agg_func and data_args.use_mse) or (not data_args.group_agg_func))
     run_name = training_args.run_name.split("/")[-2] if "/" in training_args.run_name else training_args.run_name
     if not os.path.exists(training_args.output_dir):
         os.mkdir(training_args.output_dir)

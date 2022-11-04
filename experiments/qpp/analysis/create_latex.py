@@ -19,8 +19,12 @@ DEFAULT_SELECTED_FEATURES=["WIG_norm","WIG_norm_pt","NQC_norm","NQC_norm_pt","cl
 DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_var","avg_var","WIG_norm","NQC_norm",
                            "clarity_norm","bert_qpp_or_quac","bert_qpp_topiocqa","bert_qpp_hist_or_quac","bert_qpp_hist_topiocqa"]
 '''
-DEFAULT_SELECTED_FEATURES=["st_bert_qpp_pt","bert_qpp_pt","bert_qpp","ref_hist_bert_qpp","ref_hist_bert_qpp_pt","many_turns_bert_qpp_online"]
 
+#,"many_turns_bert_qpp_online"
+
+DEFAULT_SELECTED_FEATURES=["WIG_norm","WIG_norm_pt","NQC_norm","NQC_norm_pt","clarity_norm","clarity_norm_pt"]
+#DEFAULT_SELECTED_FEATURES=["st_bert_qpp_pt","bert_qpp_pt","bert_qpp"]
+#DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","ref_hist_bert_qpp_pt","many_turns_bert_qpp"]
 REWRITE_METHODS=['t5','all','hqe','quretec']
 REWRITE_METHODS=['all','quretec']
 TWO_DIGITS_METRICS = ["PA","TPA"]
@@ -32,7 +36,7 @@ QPP_EVAL_METRIC=["pearson","kendall"]
 
 QPP_EVAL_METRIC=["sturn_1_pearson","sturn_5_pearson","sturn_10_pearson"]
 QPP_EVAL_METRIC=["sturn_0_kendall","sturn_4_kendall","sturn_8_kendall"]
-QPP_EVAL_METRIC=["sturn_1_kendall","sturn_5_kendall","sturn_9_kendall"]
+#QPP_EVAL_METRIC=["sturn_1_kendall","sturn_5_kendall","sturn_9_kendall"]
 #QPP_EVAL_METRIC=["TPA","turn_pearson","turn_kendall"]
 
 
@@ -43,6 +47,9 @@ METRICS_DISPLAY_NAME={"turn_pearson":"T$\\rho$","turn_kendall":"TK","sturn_0_pea
                       "sturn_9_kendall":"$T_{9}K$","sturn_8_kendall":"$T_{9}K$"}
 
 METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC","bert_qpp":"Bert QPP",
+                     "WIG_norm_pt":"WIG -HP per turn","clarity_norm_pt":"clarity -HP per turn",
+                     "NQC_norm_pt":"NQC -HP per turn","bert_qpp_pt":"Bert QPP -HP per turn",
+                     "st_bert_qpp_pt":"Bert QPP - fine tuned and HP per turn",
                      "bert_qpp_or_quac":"Bert QPP fine-tuned on Or QUAC",
                      "bert_qpp_topiocqa":"Bert QPP fine-tuned on TopioCQA",
                      "bert_qpp_hist":"Bert QPP+ raw history","bert_qpp_hist_or_quac":"Bert QPP+history fine-tuned on Or QUAC",
@@ -52,7 +59,7 @@ METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC",
                      "many_turns_bert_qpp_online": "dialogue groupwise QPP - online inference",
                      "many_turns_bert_qpp_hist": "dialogue groupwise QPP+raw history",
                      "many_turns_bert_qpp_prev": "dialogue groupwise QPP+previous queries",
-                     "ref_hist_bert_qpp":"Bert QPP - previous turns as reference lists"}
+                     "ref_hist_bert_qpp":"Bert QPP -REF RBO","ref_hist_bert_qpp_pt":"Bert QPP - REF RBO, HP per turn "}
 
 def is_oracle(method_name):
     return ('manual' in method_name) or ('oracle' in method_name)
