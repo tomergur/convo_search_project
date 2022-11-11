@@ -64,7 +64,7 @@ class SingleTurnBertQPP:
         res={qid:random.random() for qid in qids}
         col_add=1 if self.col=="or_quac" else 0
         for tid,t_qids in turn_qids.items():
-            if tid+col_add not in [1,5,9]:
+            if tid+col_add not in [1,2,3,5,7,9]:
                 continue
             print("run turn",tid)
             model_path = self.model_name_or_path_pattern.format(self.col, cur_method,tid+col_add)

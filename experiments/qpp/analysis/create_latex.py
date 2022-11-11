@@ -23,7 +23,13 @@ DEFAULT_SELECTED_FEATURES=["q_len","max_idf","avg_idf","max_scq","avg_scq","max_
 #,"many_turns_bert_qpp_online"
 
 DEFAULT_SELECTED_FEATURES=["WIG_norm","WIG_norm_pt","NQC_norm","NQC_norm_pt","clarity_norm","clarity_norm_pt"]
-#DEFAULT_SELECTED_FEATURES=["st_bert_qpp_pt","bert_qpp_pt","bert_qpp"]
+
+
+DEFAULT_SELECTED_FEATURES=["bert_qpp_cls","bert_qpp_reg","bert_qpp"]
+
+DEFAULT_SELECTED_FEATURES=["bert_qpp","bert_qpp_pt","st_bert_qpp_pt","bert_qpp_oracle","bert_qpp_oracle_pt",
+                           "st_bert_qpp_oracle_pt"]
+
 #DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","ref_hist_bert_qpp_pt","many_turns_bert_qpp"]
 REWRITE_METHODS=['t5','all','hqe','quretec']
 REWRITE_METHODS=['all','quretec']
@@ -36,20 +42,38 @@ QPP_EVAL_METRIC=["pearson","kendall"]
 
 QPP_EVAL_METRIC=["sturn_1_pearson","sturn_5_pearson","sturn_10_pearson"]
 QPP_EVAL_METRIC=["sturn_0_kendall","sturn_4_kendall","sturn_8_kendall"]
+
 #QPP_EVAL_METRIC=["sturn_1_kendall","sturn_5_kendall","sturn_9_kendall"]
 #QPP_EVAL_METRIC=["TPA","turn_pearson","turn_kendall"]
 
 
+
+#or quac
+QPP_EVAL_METRIC=["sturn_0_kendall","sturn_1_kendall","sturn_2_kendall","sturn_4_kendall","sturn_6_kendall","sturn_8_kendall"]
 METRICS_DISPLAY_NAME={"turn_pearson":"T$\\rho$","turn_kendall":"TK","sturn_0_pearson":"$T_{1}\\rho$",
                       "sturn_1_pearson":"$T_{1}\\rho$","sturn_4_pearson":"$T_{5}\\rho$","sturn_5_pearson":"$T_{5}\\rho$",
                       "sturn_9_pearson":"T_{10}$\\rho$","sturn_10_pearson":"T_{10}$\\rho$","sturn_0_kendall":"$T_{1}K$",
-                      "sturn_1_kendall":"$T_{1}K$","sturn_4_kendall":"$T_{5}K$","sturn_5_kendall":"$T_{5}K$",
-                      "sturn_9_kendall":"$T_{9}K$","sturn_8_kendall":"$T_{9}K$"}
+                      "sturn_1_kendall":"$T_{2}K$","sturn_2_kendall":"$T_{3}K$","sturn_4_kendall":"$T_{5}K$",
+                      "sturn_6_kendall":"$T_{7}K$","sturn_8_kendall":"$T_{9}K$"}
+
+#topiocqa
+QPP_EVAL_METRIC=["sturn_1_kendall","sturn_2_kendall","sturn_3_kendall","sturn_5_kendall","sturn_7_kendall","sturn_9_kendall"]
+METRICS_DISPLAY_NAME={"turn_pearson":"T$\\rho$","turn_kendall":"TK","sturn_0_pearson":"$T_{1}\\rho$",
+                      "sturn_1_pearson":"$T_{1}\\rho$","sturn_4_pearson":"$T_{5}\\rho$","sturn_5_pearson":"$T_{5}\\rho$",
+                      "sturn_9_pearson":"T_{10}$\\rho$","sturn_10_pearson":"T_{10}$\\rho$","sturn_1_kendall":"$T_{1}K$",
+                      "sturn_2_kendall":"$T_{2}K$","sturn_3_kendall":"$T_{3}K$","sturn_5_kendall":"$T_{5}K$",
+                      "sturn_7_kendall":"$T_{7}K$","sturn_9_kendall":"$T_{9}K$"}
+
+
+
 
 METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC","bert_qpp":"Bert QPP",
                      "WIG_norm_pt":"WIG -HP per turn","clarity_norm_pt":"clarity -HP per turn",
                      "NQC_norm_pt":"NQC -HP per turn","bert_qpp_pt":"Bert QPP -HP per turn",
                      "st_bert_qpp_pt":"Bert QPP - fine tuned and HP per turn",
+                     "st_bert_qpp_oracle_pt":"BERT QPP - fine tuned and HP per turn(HP selected by oracle)",
+                     "bert_qpp_oracle": "BERT QPP - (HP selected by oracle for all turns)",
+                     "bert_qpp_cls":"Bert QPP(CE loss)","bert_qpp_reg":"Bert QPP(MSE loss)",
                      "bert_qpp_or_quac":"Bert QPP fine-tuned on Or QUAC",
                      "bert_qpp_topiocqa":"Bert QPP fine-tuned on TopioCQA",
                      "bert_qpp_hist":"Bert QPP+ raw history","bert_qpp_hist_or_quac":"Bert QPP+history fine-tuned on Or QUAC",

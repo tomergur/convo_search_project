@@ -17,14 +17,20 @@ REWRITE_METHODS=['t5','all','hqe','quretec']
 REWRITE_METHODS=['all','quretec']
 
 METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC","bert_qpp":"Bert QPP",
+                     "WIG_norm_pt":"WIG -HP per turn","clarity_norm_pt":"clarity -HP per turn",
+                     "NQC_norm_pt":"NQC -HP per turn","bert_qpp_pt":"Bert QPP -HP per turn",
+                     "st_bert_qpp_pt":"Bert QPP - fine tuned and HP per turn",
                      "bert_qpp_or_quac":"Bert QPP fine-tuned on Or QUAC",
                      "bert_qpp_topiocqa":"Bert QPP fine-tuned on TopioCQA",
+                     "bert_qpp_cls": "Bert QPP(CE loss)", "bert_qpp_reg": "Bert QPP(MSE loss)",
                      "bert_qpp_hist":"Bert QPP+ raw history","bert_qpp_hist_or_quac":"Bert QPP+history fine-tuned on Or QUAC",
                      "bert_qpp_hist_topiocqa":"Bert QPP+history fine-tuned on TopioCQA",
                      "bert_qpp_prev":"Bert QPP+previous queries",
                      "many_turns_bert_qpp":"dialogue groupwise QPP",
+                     "many_turns_bert_qpp_online": "dialogue groupwise QPP - online inference",
                      "many_turns_bert_qpp_hist": "dialogue groupwise QPP+raw history",
-                     "many_turns_bert_qpp_prev": "dialogue groupwise QPP+previous queries"}
+                     "many_turns_bert_qpp_prev": "dialogue groupwise QPP+previous queries",
+                     "ref_hist_bert_qpp":"Bert QPP -REF RBO","ref_hist_bert_qpp_pt":"Bert QPP - REF RBO, HP per turn "}
 
 def create_ret_turn_graph(ret_res,out_dir,metric):
     ret_file_name = "{}/turn_ret_performance_{}.png".format(out_dir, metric)

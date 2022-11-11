@@ -50,11 +50,23 @@ class GroupwiseBert(tf.keras.Model):
 
 
     def call(self, inputs, training=False):
+        #tf.print(tf.shape(inputs['input_ids']))
+        input_shape=tf.shape(inputs['input_ids'])
+        num_seq = input_shape[0]
+        seq_length = input_shape[1]
+        entry_length=input_shape[2]
+        inputs = {k: tf.reshape(v, [-1, entry_length]) for k, v in inputs.items()}
+        '''
         if len(tf.shape(inputs['input_ids']))>2:
             inputs={k:tf.squeeze(v,0) for k,v in inputs.items()}
+        '''
+        #tf.print(tf.shape(inputs['input_ids']))
         bert_res = self.text_bert(**inputs, training=training)
         # text_emb=tf.expand_dims(bert_res.last_hidden_state[:,0,:],0)
-        text_emb = tf.expand_dims(bert_res.pooler_output, 0)
+        #text_emb = tf.expand_dims(bert_res.pooler_output, 0)
+        #tf.print(tf.shape(text_emb))
+        text_emb=tf.reshape(bert_res.pooler_output,[num_seq,seq_length,-1])
+        #tf.print(tf.shape(text_emb))
         if self.output_mode and "online" in self.output_mode:
             return self.online_output(text_emb, training)
         group_inputs = {'inputs_embeds': text_emb}

@@ -27,8 +27,12 @@ def create_model(model_name, data_args):
 
 
 def ce_loss(y_true, y_pred):
+
     scores = tf.nn.log_softmax(y_pred)
     non_rel_prob = tf.ones_like(y_true, dtype=tf.float32) - y_true
-    loss = -1 * (tf.math.multiply(scores, tf.concat([non_rel_prob, y_true], axis=1)))
+    probs=tf.concat([non_rel_prob, y_true], axis=1)
+    #tf.print(probs)
+    #tf.print("loss:", tf.shape(y_pred),tf.shape(probs),tf.shape(y_true))
+    loss = -1 * (tf.math.multiply(scores,probs))
     loss = tf.reduce_sum(loss, axis=-1)
     return loss
