@@ -31,7 +31,7 @@ class GroupwiseBert(tf.keras.Model):
 
         with tf.name_scope("groupwise_bert") as scope:
             group_model = TFAutoModelForSequenceClassification.from_pretrained(
-                group_model_path) if output_mode == "online_seq" else TFAutoModelForTokenClassification.from_pretrained(
+                group_model_path) if "seq" in output_mode else TFAutoModelForTokenClassification.from_pretrained(
                 group_model_path)
 
         return GroupwiseBert(text_model, group_model, group_agg_func, output_mode=output_mode)
@@ -46,7 +46,8 @@ class GroupwiseBert(tf.keras.Model):
         res = self.group_bert(group_inputs, training=training)
         if self.output_mode == "online_seq":
             return res.logits
-        return tf.gather(res.logits, indices=range(seq_length), axis=1, batch_dims=1)
+        token_res=tf.gather(res.logits, indices=range(seq_length), axis=1, batch_dims=1)
+        return token_res
 
 
     def call(self, inputs, training=False):

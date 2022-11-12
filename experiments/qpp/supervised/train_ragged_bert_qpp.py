@@ -13,13 +13,14 @@ FEATURE_DESC = {
     'labels': tf.io.RaggedFeature(value_key="labels",partitions=[tf.io.RaggedFeature.UniformRowLength(1)],dtype=tf.float32)
 }
 
+MAX_SEQ_LENGTH=12
 def _parse_function(example_proto):
     # Parse the input `tf.train.Example` proto using the dictionary above.
     example = tf.io.parse_single_example(example_proto, FEATURE_DESC)
-    input_ids = tf.cast(example['input_ids'], tf.int32)
-    attention_mask = tf.cast(example['attention_mask'], tf.int32)
-    token_type_ids = tf.cast(example['token_type_ids'], tf.int32)
-    labels = tf.cast(example['labels'], tf.float32)
+    input_ids = tf.cast(example['input_ids'][:MAX_SEQ_LENGTH], tf.int32)
+    attention_mask = tf.cast(example['attention_mask'][:MAX_SEQ_LENGTH], tf.int32)
+    token_type_ids = tf.cast(example['token_type_ids'][:MAX_SEQ_LENGTH], tf.int32)
+    labels = tf.cast(example['labels'][:MAX_SEQ_LENGTH], tf.float32)
     return {'input_ids': input_ids, 'attention_mask': attention_mask,
             'token_type_ids': token_type_ids}, labels
 

@@ -173,6 +173,7 @@ class GroupwiseBertQPP:
         trunc_queries = [truncate_query(query, self.tokenizer) for query in queries]
         ret = self.tokenizer(trunc_queries, passages, max_length=512, truncation=True, return_token_type_ids=True,
                              return_tensors='tf', padding=True)
+        ret={k:tf.expand_dims(v,0) for k,v in ret.items()}
         logits = self.model(ret, training=False)
         if len(logits.shape) == 0:
             return [logits.numpy().item()]
