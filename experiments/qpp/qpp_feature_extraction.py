@@ -77,11 +77,11 @@ class QPPFeatureFactory:
                                                                              hp_config['suffix'] + "/text_embed/",
                                                                              "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank/{}_{}" +
                                                                              hp_config['suffix'] + "/group_model/", col,output_mode="online_seq")
-        qpp_dict["many_turns_bert_qpp_seq"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
-                                                                             "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank/{}_{}" +
+        qpp_dict["many_turns_bert_qpp_tokens"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
+                                                                             "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank_tokens/{}_{}" +
                                                                              hp_config['suffix'] + "/text_embed/",
-                                                                             "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank/{}_{}" +
-                                                                             hp_config['suffix'] + "/group_model/", col,output_mode="online_seq")
+                                                                             "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank_tokens/{}_{}" +
+                                                                             hp_config['suffix'] + "/group_model/", col,output_mode="online")
         qpp_dict["many_turns_bert_qpp_hist"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
                                                                                   "/v/tomergur/convo/qpp_models/many_turns_bert_qpp_hist_rerank/{}_{}" +
                                                                                   hp_config['suffix'] + "/text_embed/",

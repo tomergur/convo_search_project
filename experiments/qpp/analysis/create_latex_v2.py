@@ -2,11 +2,12 @@ import argparse
 import json
 import os
 import time
+
 import numpy as np
 import pandas as pd
+import scipy.stats as stats
 
 from ..qpp_utils import create_label_dict,load_eval,calc_topic_corr,calc_topic_pairwise_acc,calc_topic_turn_corr,evaluate_topic_predictor
-from scipy.stats import pearsonr,kendalltau,spearmanr
 import matplotlib.pyplot as plt
 
 DEFAULT_COL='or_quac'
@@ -26,10 +27,8 @@ DEFAULT_SELECTED_FEATURES=["WIG_norm","WIG_norm_pt","NQC_norm","NQC_norm_pt","cl
 
 
 
-DEFAULT_SELECTED_FEATURES=["bert_qpp","bert_qpp_pt","st_bert_qpp_pt","bert_qpp_oracle","bert_qpp_oracle_pt",
-                           "st_bert_qpp_oracle_pt"]
 
-DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_tokens"]
+DEFAULT_SELECTED_FEATURES=["max_idf","avg_idf","bert_qpp_cls","many_turns_bert_qpp_tokens"]
 REWRITE_METHODS=['t5','all','hqe','quretec']
 REWRITE_METHODS=['all','quretec']
 TWO_DIGITS_METRICS = ["PA","TPA"]
@@ -149,7 +148,7 @@ def get_table_columns_names(columns, sub_columns):
     res += '\\\\ \\hline'
     return res
 
-def result_to_latex(res_dict,output_path,table_type):
+def result_to_latex(res_dict,output_path,t_test_res,table_type):
     with open(output_path, 'w') as output:
         print('\\begin{center}', file=output)
         column_names=list(res_dict.keys())
@@ -163,9 +162,38 @@ def result_to_latex(res_dict,output_path,table_type):
             table_col_names_line = get_table_columns_names(column_names, sub_columns_names)
             print(table_col_names_line, file=output)
         for row_name in row_names:
-            print(get_method_row(row_name, res_dict, column_names, sub_columns_names,table_type,{}), file=output)
+            print(get_method_row(row_name, res_dict, column_names, sub_columns_names,table_type,t_test_res), file=output)
         print('\\end{tabular}', file=output)
         print('\\end{center}', file=output)
+
+def t_test_paired(new_method, baseline, alpha=.05):
+    t, p_val = stats.ttest_rel(new_method, baseline, alternative="greater")
+    return t > 0 and p_val < alpha
+
+
+BASELINE_METHODS={"bert_qpp_cls":"*"}
+def get_ttest_vals(split_res, baseline_methods=BASELINE_METHODS):
+    res = {}
+    print(baseline_methods)
+    for col_name in split_res.keys():
+        col_res = split_res[col_name]
+        col_ttest = {}
+        metrics = list(col_res.values())[0].keys()
+        print(metrics)
+        for metric in metrics:
+            metric_res = {}
+            for subcol_name, subcol_res in col_res.items():
+                '''
+                if method_name in baseline_methods:
+                    continue
+                '''
+                sgni_symbols = [method_key for method_name, method_key in \
+                                baseline_methods.items() if t_test_paired(subcol_res[metric], col_res[method_name][metric])]
+                if len(sgni_symbols) > 0:
+                    metric_res[subcol_name] = ''.join(sgni_symbols)
+            col_ttest[metric] = metric_res
+        res[col_name] = col_ttest
+    return res
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
@@ -189,39 +217,49 @@ if __name__ == "__main__":
     output_file_name=args.output_file_name
     EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
     RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
-    rewrites_eval=load_eval(EVAL_PATH,REWRITE_METHODS)
-    label_dict = create_label_dict(rewrites_eval, metric)
     sep_token="#" if col=="or_quac" else "_"
     corr_type=args.corr_type
     out_dir="{}/{}/{}/analysis/".format(qpp_res_dir_base,res_dir,col)
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
     latex_res={}
+    features_exp={}
+    splits_res={}
+    for feature in features:
+        feature_eval = {}
+        print("calc feature:", feature)
+        start_time = time.time()
+        exp_path = "{}/{}/{}/exp_per_turn_kendall_{}_{}_30.json".format(qpp_res_dir_base, res_dir, col,
+                                                                       feature, metric)
+        with open(exp_path) as f:
+            exp_turns = json.load(f)
+        features_exp[feature]=exp_turns
+
     for rewrite_method in REWRITE_METHODS:
         print("calc res for:",rewrite_method)
-        method_label = label_dict[rewrite_method]
         latex_res[rewrite_method]={}
+        splits_res[rewrite_method]={}
+
         for feature in features:
             feature_eval={}
-            print("calc feature:", feature)
-            if "cast" not in col:
-                feature_val_path = "{}/{}/{}/cache/{}_{}.json".format(qpp_res_dir_base, res_dir, col, feature, metric)
-                with open(feature_val_path) as f:
-                    feature_val = json.load(f)
-            start_time=time.time()
-            for eval_metric in QPP_EVAL_METRIC:
-                display_name=METRICS_DISPLAY_NAME.get(eval_metric,eval_metric)
-                if "cast" in col:
-                    table_path="{}/{}/{}/{}_{}_{}_30.csv".format(qpp_res_dir_base, res_dir, col,eval_metric,feature,metric)
-                    qpp_eval_table=pd.read_csv(table_path)
-                    print("eval table",qpp_eval_table.at[0,rewrite_method])
-                    feature_eval[display_name] =qpp_eval_table.at[0,rewrite_method]
-                else:
-                    feature_eval[display_name]=evaluate_topic_predictor(feature_val[rewrite_method],method_label,eval_metric)
+            split_eval={}
+            feature_splits_res=features_exp[feature][rewrite_method]
+            max_turns=len(feature_splits_res[0])
+            turns=[0,1,2,4,6,8]
+            for i in turns:
+                turn_kendall=[feature_res[i] for feature_res in feature_splits_res]
+                turn_res=round(np.mean(turn_kendall),3)
+                print("num splits",len(turn_kendall))
+                feature_eval["$T_{"+str(i+1)+"}}K$"]=turn_res
+                split_eval["$T_{"+str(i+1)+"}}K$"]=turn_kendall
+                print("eval table",i+1, turn_res)
             print("feature value calc:", time.time() - start_time)
             latex_res[rewrite_method][feature] = feature_eval
+            splits_res[rewrite_method][feature]=split_eval
     output_file="{}/{}".format(out_dir,output_file_name)
-    result_to_latex(latex_res,output_file,table_type)
+    t_test_res=get_ttest_vals(splits_res)
+    print("t_test_res",t_test_res)
+    result_to_latex(latex_res,output_file,t_test_res,table_type)
 
 
 

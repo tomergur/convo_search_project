@@ -7,9 +7,8 @@ import math
 
 def load_data(rewrite_methods, eval_path, runs_path, queries_field="first_stage_rewrites", col="cast19"):
     runs, rewrites, turns_text = {}, {}, {}
-
-    rewrites_eval = load_eval(eval_path, rewrite_methods)
-
+    split_token="#" if col=="or_quac" else "_"
+    rewrites_eval = load_eval(eval_path, rewrite_methods,split_token)
     # second_stage_queries
     for rewrite_method in rewrite_methods:
         input_path = "{}/{}_queries.json".format(runs_path, rewrite_method)
@@ -34,13 +33,13 @@ def load_data(rewrite_methods, eval_path, runs_path, queries_field="first_stage_
     return runs, rewrites, rewrites_eval, turns_text
 
 
-def load_eval(eval_path, rewrite_methods):
+def load_eval(eval_path, rewrite_methods,split_token):
     rewrites_eval = {}
     for rewrite_method in rewrite_methods:
         input_path = "{}/{}.txt".format(eval_path, rewrite_method)
         eval_list = pd.read_csv(input_path, header=None, names=["metric", "qid", "value"], delimiter="\t")
         eval_list = eval_list[~(eval_list.qid == "all")]
-        eval_list = eval_list.assign(sid=eval_list.qid.map(lambda x: x.split("_")[0]))
+        eval_list = eval_list.assign(sid=eval_list.qid.map(lambda x: x.split(split_token)[0]))
         # eval_list.metric=eval_list.metric.str.strip()
         rewrites_eval[rewrite_method] = eval_list
     return rewrites_eval

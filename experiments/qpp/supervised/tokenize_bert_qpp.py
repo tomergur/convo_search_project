@@ -75,6 +75,7 @@ if __name__ == "__main__":
     parser.add_argument("--append_history", action='store_true', default=False)
     parser.add_argument("--append_prev_turns", action='store_true', default=False)
     parser.add_argument("--selected_tid",default=None)
+    parser.add_argument("--max_tid",type=int,default=10)
 
     # parser.add_argument('--qrel_path',default=QREL_PATH)
     args = parser.parse_args()
@@ -91,6 +92,7 @@ if __name__ == "__main__":
     query_field_name = "second_stage_queries" if args.is_rerank else 'first_stage_rewrites'
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=True)
     input_file = "{}/{}/{}/{}_queries.json".format(RES_PATH, setting_name, col, run_name)
+    max_tid=args.max_tid
     with open(input_file) as f:
         queries = json.load(f)
 
@@ -115,6 +117,8 @@ if __name__ == "__main__":
         raw_query = query_json[query_field_name][0]
         sid, tid = qid.split(split_token)
         if select_tid is not None and select_tid!=tid:
+            continue
+        if int(tid)>=max_tid+first_tid:
             continue
         if append_history or append_prev_turns:
             if int(tid) > first_tid:

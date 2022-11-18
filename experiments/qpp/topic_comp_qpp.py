@@ -1,3 +1,5 @@
+import random
+
 import pandas as pd
 import json
 import scipy.stats
@@ -11,7 +13,8 @@ from .qpp_feature_extraction import QPPFeatureFactory
 from .qpp_utils import load_data,create_label_dict,create_ctx,calc_topic_corr,topic_evaluate_extractor,calc_topic_pairwise_acc,evaluate_topic_predictor
 REWRITE_METHODS=['raw','t5','all','hqe','quretec','manual']
 REWRITE_METHODS=['t5','all','hqe','quretec']
-DEFAULT_RES_DIR="kld"
+REWRITE_METHODS=['all','quretec']
+DEFAULT_RES_DIR="rerank_kld_100"
 DEFAULT_COL = "cast19"
 DEFAULT_QPP_RES_DIR="/lv_local/home/tomergur/convo_search_project/data/qpp/topic_comp/"
 res_file_name="pre_ret_qpp.json"
@@ -48,6 +51,7 @@ def load_or_create_splits(sids,num_splits,qpp_res_dir):
             splits = json.load(f)
         return splits
     splits=[]
+    subsamples=[]
     fold_size = int(len(sids) / 2)
     for i in range(num_splits):
         perm_sessions = np.random.permutation(sids).tolist()
@@ -59,6 +63,39 @@ def load_or_create_splits(sids,num_splits,qpp_res_dir):
         json.dump(splits,f)
     return splits
 
+
+
+def load_or_create_subsamples(qids,splits,qpp_res_dir,subsample_size=50,max_turn=10):
+    subsamples_file_name = "{}/subsamples_{}_{}_{}.json".format(qpp_res_dir, len(splits),subsample_size,max_turn)
+    if os.path.isfile(subsamples_file_name):
+        with open(subsamples_file_name) as f:
+            subsamples = json.load(f)
+        return subsamples
+    subsamples=[]
+    split_token = "#" if len(qids[0].split("#")) > 1 else "_"
+    tids=list(set([qid.split(split_token)[1] for qid in qids]))
+    tids=[int(x) for x in tids]
+    tids.sort()
+    print("tids vals:",tids)
+    t_qids= {tid:[] for tid in tids}
+    for qid in qids:
+        _,tid=qid.split(split_token)
+        tid=int(tid)
+        t_qids[tid].append(qid)
+    tids=tids[:max_turn]
+    for split in splits:
+        fold1,fold2=split
+        fold1_subsamples,fold2_subsamples=[],[]
+        for tid in tids:
+            qids_fold1=[qid for qid in t_qids[tid] if qid.split(split_token)[0] in fold1]
+            print("len qids fold 1",tid,len(qids_fold1))
+            fold1_subsamples+=random.sample(qids_fold1,subsample_size) if len(qids_fold1)>=subsample_size else qids_fold1
+            qids_fold2=[qid for qid in t_qids[tid] if qid.split(split_token)[0] in fold2] if len(qids_fold2)>=subsample_size else qids_fold2
+            fold2_subsamples+=random.sample(qids_fold2,subsample_size)
+        subsamples.append([fold1_subsamples,fold2_subsamples])
+    with open(subsamples_file_name,'w') as f:
+        json.dump(subsamples,f)
+    return subsamples
 
 
 
@@ -86,7 +123,7 @@ def create_scatter_plot(features,labels,path,feature_name,method_name,metric):
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
-    parser.add_argument("--metric",default="ndcg_cut_3")
+    parser.add_argument("--metric",default="recip_rank")
     parser.add_argument("--col",default=DEFAULT_COL)
     parser.add_argument("--res_dir",default=DEFAULT_RES_DIR)
     parser.add_argument("--qpp_res_dir_base",default=DEFAULT_QPP_RES_DIR)
@@ -95,7 +132,9 @@ if __name__=="__main__":
     parser.add_argument("--query_rewrite_field",default=DEFAULT_QUERY_FIELD)
     parser.add_argument("--cache_results",action='store_true',default=False)
     parser.add_argument("--load_cached_feature",action='store_true',default=False)
-    parser.add_argument("--qpp_eval_metric",default="TPA")
+    parser.add_argument("--qpp_eval_metric",default="turn_kendall")
+    parser.add_argument("--max_turn",type=int,default=10)
+    parser.add_argument("--subsamples_size",type=int,default=50)
     args=parser.parse_args()
     metric = args.metric
     col=args.col
@@ -107,38 +146,50 @@ if __name__=="__main__":
     selected_features=args.features
     query_rewrite_field=args.query_rewrite_field
     qpp_eval_metric=args.qpp_eval_metric
+    max_turn=args.max_turn
+    subsamples_size=args.subsamples_size
     EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
     RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
     runs, rewrites, rewrites_eval,turns_text=load_data(REWRITE_METHODS,EVAL_PATH,RUNS_PATH,query_rewrite_field,col)
     label_dict=create_label_dict(rewrites_eval,metric)
 
     sids=rewrites_eval[REWRITE_METHODS[0]].sid.unique()
+    qids = rewrites_eval[REWRITE_METHODS[0]].qid.unique()
     qpp_res_dir = "{}/{}/{}/".format(qpp_res_dir_base,res_dir, col)
     splits=load_or_create_splits(sids,num_splits,qpp_res_dir)
+    splits_subsamples=load_or_create_subsamples(qids,splits,qpp_res_dir,subsamples_size,max_turn)
     qpp_factory=QPPFeatureFactory(col,qpp_res_dir if load_cached_feature else None)
     corr_res={}
-    scatter_base_dir="{}/scatter_{}/".format(qpp_res_dir,metric)
+    per_turn_corr_res = {}
+    first_tid=0 if col=='or_quac' else 1
     #scatter code
+    '''
+    scatter_base_dir="{}/scatter_{}/".format(qpp_res_dir,metric)
+
     if not os.path.exists(scatter_base_dir):
         os.mkdir(scatter_base_dir)
-    ctx=create_ctx(runs,rewrites,turns_text)
+    '''
+    ctx=create_ctx(runs,rewrites,turns_text,col)
     for feature in selected_features:
         corr_res[feature]={}
         corr_raw_res = {}
+        per_turn_corr_raw_res={}
         hp_configs = QPP_FEATURES_PARAMS.get(feature, {})
         print("num configs",len(hp_configs))
         #scatter code
+        '''
         scatter_feature_dir="{}/{}".format(scatter_base_dir,feature)
 
         if not os.path.exists(scatter_feature_dir):
             os.mkdir(scatter_feature_dir)
-
+        '''
         features_cache = {}
         for method_name,method_rewrites in rewrites.items():
             start_time = time.time()
             method_runs = runs[method_name]
             method_ctx=ctx[method_name]
             corr_vals=[]
+            per_turn_corr_res=[]
             labels=label_dict[method_name]
 
             #run all scores:
@@ -157,29 +208,36 @@ if __name__=="__main__":
             print([(x,y[0]) for x,y in zip(hp_configs,feature_val)])
             print("feature calc time:",time.time()-feature_calc_start_time)
             #scatter code
+            '''
             scatter_dir="{}/{}/".format(scatter_feature_dir,method_name)
             if not os.path.exists(scatter_dir):
                 os.mkdir(scatter_dir)
-
-            for i,split in enumerate(splits):
+            '''
+            for i,split in enumerate(splits_subsamples):
                 split_start_time=time.time()
-                fold1_labels = {qid: v for qid, v in labels.items() if qid.split("_")[0] in split[0]}
-                fold2_labels = {qid: v for qid, v in labels.items() if qid.split("_")[0] in split[1]}
+                fold1_labels = {qid: v for qid, v in labels.items() if qid in split[0]}
+                fold2_labels = {qid: v for qid, v in labels.items() if qid in split[1]}
 
-                features_values_fold_1=[{qid:v for qid, v in hp_res[1].items() if qid.split("_")[0] in split[0]} for hp_res in feature_val]
-                features_values_fold_2=[{qid:v for qid, v in hp_res[1].items() if qid.split("_")[0] in split[1]} for hp_res in feature_val]
+                features_values_fold_1=[{qid:v for qid, v in hp_res[1].items() if qid in split[0]} for hp_res in feature_val]
+                features_values_fold_2=[{qid:v for qid, v in hp_res[1].items() if qid in split[1]} for hp_res in feature_val]
                 #fold1_corr=[calc_topic_corr(x,fold1_labels) for x in features_values_fold_1]
                 #fold2_corr = [calc_topic_corr(x, fold2_labels) for x in features_values_fold_2]
 
                 fold1_corr=[evaluate_topic_predictor(x,fold1_labels,qpp_eval_metric) for x in features_values_fold_1]
-                fold2_corr = [evaluate_topic_predictor(x, fold2_labels,qpp_eval_metric) for x in features_values_fold_2]
+                fold2_corr = [evaluate_topic_predictor(x,fold2_labels,qpp_eval_metric) for x in features_values_fold_2]
 
                 fold1_selected_hp=np.argmax(fold1_corr)
                 corr_fold_a=fold2_corr[fold1_selected_hp]
                 res_fold_a=features_values_fold_2[fold1_selected_hp]
+                per_turn_corr_fold_a=[evaluate_topic_predictor(res_fold_a,fold2_labels,"sturn_{}_kendall".format(i)) for i in range(first_tid,first_tid+max_turn)]
+
                 fold2_selected_hp=np.argmax(fold2_corr)
                 corr_fold_b=fold1_corr[fold2_selected_hp]
                 res_fold_b = features_values_fold_1[fold2_selected_hp]
+                per_turn_corr_fold_b=[evaluate_topic_predictor(res_fold_b,fold1_labels,"sturn_{}_kendall".format(i)) for i in range(first_tid,first_tid+max_turn)]
+
+                per_turn_corr_res.append(per_turn_corr_fold_a)
+                per_turn_corr_res.append(per_turn_corr_fold_b)
                 if len(hp_configs)>0:
                     print(hp_configs[fold1_selected_hp])
                     print(hp_configs[fold2_selected_hp])
@@ -187,21 +245,26 @@ if __name__=="__main__":
                 corr_vals.append(corr_fold_a)
                 corr_vals.append(corr_fold_b)
                 #scatter code
+                '''
                 scatter_path="{}/exp_{}.png".format(scatter_dir,1+i*2)
                 create_scatter_plot(res_fold_a,fold2_labels,scatter_path,feature,method_name,metric)
                 scatter_path2 = "{}/exp_{}.png".format(scatter_dir, 2 + i * 2)
                 create_scatter_plot(res_fold_b, fold1_labels, scatter_path2,feature,method_name,metric)
+                '''
                 print("split time",time.time()-split_start_time)
             print(corr_vals)
             print(feature,method_name,np.mean(corr_vals),len(corr_vals))
             corr_res[feature][method_name]=round(np.mean(corr_vals),3)
             corr_raw_res[method_name]=corr_vals
-
+            per_turn_corr_raw_res[method_name]=per_turn_corr_res
             print("calc time:",time.time()-start_time)
         # write corr results for stat sgni.
         feature_r_vals_path = "{}/exp_{}_{}_{}_{}.json".format(qpp_res_dir,qpp_eval_metric, feature, metric, num_splits)
         with open(feature_r_vals_path, 'w') as f:
             json.dump(corr_raw_res, f)
+        per_turn_feature_r_vals_path = "{}/exp_per_turn_kendall_{}_{}_{}.json".format(qpp_res_dir, feature, metric, num_splits)
+        with open(per_turn_feature_r_vals_path, 'w') as f:
+            json.dump(per_turn_corr_raw_res, f)
         if cache_results:
             features_cache_path="{}/cache/{}.json".format(qpp_res_dir,feature)
             with open(features_cache_path, 'w') as f:

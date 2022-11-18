@@ -4,8 +4,7 @@ from transformers import HfArgumentParser, TFTrainingArguments
 from dataclasses import dataclass, field
 import json
 import os
-
-from experiments.qpp.supervised.train_utils import create_model,ce_loss
+from experiments.qpp.supervised.train_utils import create_model, ce_loss, CheckpointTransformerModel
 
 FEATURE_DESC = {
     'input_ids': tf.io.FixedLenFeature([512], tf.int64),
@@ -31,12 +30,13 @@ def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_funct
     raw_train_data = tf.data.TFRecordDataset(dataset_files, num_parallel_reads=None)
     parsed_train_dataset = raw_train_data.map(parse_func, num_parallel_calls=tf.data.AUTOTUNE)
     train_dataset = parsed_train_dataset.shuffle(buffer_size=1000)
-    #train_dataset = parsed_train_dataset
+    # train_dataset = parsed_train_dataset
     if max_steps > -1:
         max_train_size = max_steps * batch_size
         print("number of train samples:", max_train_size)
         train_dataset = train_dataset.take(max_train_size)
     return train_dataset.batch(batch_size)
+
 
 '''
 def create_model(model_name, data_args):
@@ -44,6 +44,7 @@ def create_model(model_name, data_args):
     model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt, num_labels=num_labels)
     return model
 '''
+
 
 @dataclass
 class DataArguments:
@@ -59,7 +60,7 @@ class DataArguments:
     backup_dir: str = None
     from_pt: bool = False
     early_stop: bool = False
-    use_mse:bool = False
+    use_mse: bool = False
     groupwise_model: bool = False
 
 
@@ -78,7 +79,8 @@ if __name__ == "__main__":
     if not os.path.exists(info_expr_dir):
         os.mkdir(info_expr_dir)
     with open("{}/{}".format(info_expr_dir, "training_args.json"), 'w') as f:
-        json.dump({k: v for k, v in training_args.__dict__.items() if isinstance(v, int) or isinstance(v, str) or isinstance(v, float)}, f,
+        json.dump({k: v for k, v in training_args.__dict__.items() if
+                   isinstance(v, int) or isinstance(v, str) or isinstance(v, float)}, f,
                   indent=True)
     with open("{}/{}".format(info_expr_dir, "data_args.json"), 'w') as f:
         json.dump(data_args.__dict__, f, indent=True)
@@ -87,12 +89,12 @@ if __name__ == "__main__":
         loss = ce_loss if not data_args.use_mse else tf.keras.losses.MeanSquaredError()
         metrics = []
         # metrics = metrics
-        #for debug ,run_eagerly=True
+        # for debug ,run_eagerly=True
         print("")
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=training_args.learning_rate), loss=loss,
-                          metrics=metrics)
+                      metrics=metrics)
         if training_args.do_train:
-            parse_func =  _parse_function
+            parse_func = _parse_function
             train_dataset = create_dataset(data_args.train_files, training_args.train_batch_size,
                                            training_args.max_steps,
                                            parse_func)
@@ -107,11 +109,16 @@ if __name__ == "__main__":
                     backup_dir=data_args.backup_dir)
                 callbacks.append(model_backup_callback)
             if data_args.checkpoint_dir:
-                model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=data_args.checkpoint_dir,
+                if data_args.save_best_only:
+                    model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=data_args.checkpoint_dir,
                                                                                monitor='val_loss',
                                                                                save_best_only=data_args.save_best_only,
                                                                                save_weights_only=True)
+                else:
+                    model_checkpoint_callback = CheckpointTransformerModel(data_args.checkpoint_dir, tokenizer)
+                print("add checkpoint callback")
                 callbacks.append(model_checkpoint_callback)
+
             history = model.fit(train_dataset, epochs=int(training_args.num_train_epochs),
                                 validation_data=valid_dataset, verbose=1, callbacks=callbacks)
             print(history.history)
@@ -124,7 +131,7 @@ if __name__ == "__main__":
                 text_embed_path = "{}/text_embed".format(training_args.output_dir)
                 group_path = "{}/group_model".format(training_args.output_dir)
                 tokenizer.save_pretrained(text_embed_path)
-                model.save_pretrained(text_embed_path,group_path)
+                model.save_pretrained(text_embed_path, group_path)
             else:
                 tokenizer.save_pretrained(training_args.output_dir)
                 model.save_pretrained(training_args.output_dir)

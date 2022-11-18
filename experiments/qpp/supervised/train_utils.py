@@ -2,7 +2,7 @@ from transformers import TFAutoModelForSequenceClassification, TFAutoModel, TFAu
 from transformers.models.bert import BertConfig, TFBertForTokenClassification, TFBertForSequenceClassification
 from experiments.qpp.supervised.groupwise_model import GroupwiseBert
 import tensorflow as tf
-
+import keras
 
 def create_model(model_name, data_args):
     num_classes = 1 if data_args.use_mse else 2
@@ -36,3 +36,14 @@ def ce_loss(y_true, y_pred):
     loss = -1 * (tf.math.multiply(scores,probs))
     loss = tf.reduce_sum(loss, axis=-1)
     return loss
+
+class CheckpointTransformerModel(keras.callbacks.Callback):
+    def __init__(self,model_path,tokenizer):
+        super(CheckpointTransformerModel, self).__init__()
+        self.model_path=model_path
+        self.tokenizer=tokenizer
+    def on_epoch_end(self, epoch,logs=None):
+        cur_path=self.model_path.format(epoch+1)
+        print("cur path",cur_path)
+        self.model.save_pretrained(cur_path)
+        self.tokenizer.save_pretrained(cur_path)
