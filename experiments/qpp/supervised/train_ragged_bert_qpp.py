@@ -4,7 +4,7 @@ from transformers import HfArgumentParser, TFTrainingArguments
 from dataclasses import dataclass, field
 import json
 import os
-from experiments.qpp.supervised.train_utils import create_model,ce_loss
+from experiments.qpp.supervised.train_utils import create_model,ce_loss,CheckpointTransformerModel
 
 FEATURE_DESC = {
     'input_ids': tf.io.RaggedFeature(value_key="input_ids",partitions=[tf.io.RaggedFeature.UniformRowLength(512)],dtype=tf.int64),
@@ -13,7 +13,7 @@ FEATURE_DESC = {
     'labels': tf.io.RaggedFeature(value_key="labels",partitions=[tf.io.RaggedFeature.UniformRowLength(1)],dtype=tf.float32)
 }
 
-MAX_SEQ_LENGTH=12
+MAX_SEQ_LENGTH=10
 def _parse_function(example_proto):
     # Parse the input `tf.train.Example` proto using the dictionary above.
     example = tf.io.parse_single_example(example_proto, FEATURE_DESC)
@@ -125,10 +125,13 @@ if __name__ == "__main__":
                     backup_dir=data_args.backup_dir)
                 callbacks.append(model_backup_callback)
             if data_args.checkpoint_dir:
-                model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=data_args.checkpoint_dir,
+                if data_args.save_best_only:
+                    model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=data_args.checkpoint_dir,
                                                                                monitor='val_loss',
                                                                                save_best_only=data_args.save_best_only,
                                                                                save_weights_only=True)
+                else:
+                    model_checkpoint_callback = CheckpointTransformerModel(data_args.checkpoint_dir, tokenizer)
                 callbacks.append(model_checkpoint_callback)
             history = model.fit(train_dataset, epochs=int(training_args.num_train_epochs),
                                 validation_data=valid_dataset, verbose=1, callbacks=callbacks)
@@ -138,10 +141,8 @@ if __name__ == "__main__":
             if data_args.checkpoint_dir and data_args.save_best_only:
                 print("load best model...")
                 model.load_weights(data_args.checkpoint_dir)
-            text_embed_path = "{}/text_embed".format(training_args.output_dir)
-            group_path = "{}/group_model".format(training_args.output_dir)
-            tokenizer.save_pretrained(text_embed_path)
-            model.save_pretrained(text_embed_path,group_path)
+            tokenizer.save_pretrained(training_args.output_dir)
+            model.save_pretrained(training_args.output_dir)
         if training_args.do_eval:
             test_files = tf.io.gfile.glob(data_args.test_files)
             raw_test_data = tf.data.TFRecordDataset(test_files, num_parallel_reads=tf.data.AUTOTUNE)
