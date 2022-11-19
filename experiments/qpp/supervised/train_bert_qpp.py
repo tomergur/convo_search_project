@@ -116,7 +116,6 @@ if __name__ == "__main__":
                                                                                save_weights_only=True)
                 else:
                     model_checkpoint_callback = CheckpointTransformerModel(data_args.checkpoint_dir, tokenizer)
-                print("add checkpoint callback")
                 callbacks.append(model_checkpoint_callback)
 
             history = model.fit(train_dataset, epochs=int(training_args.num_train_epochs),

@@ -79,6 +79,8 @@ class GroupwiseBert(tf.keras.Model):
             return self.agg_func(group_res)
         return group_res
 
-    def save_pretrained(self, text_embed_path, group_path):
+    def save_pretrained(self, output_path):
+        text_embed_path = "{}/text_embed".format(output_path)
+        group_path = "{}/group_model".format(output_path)
         self.text_bert.save_pretrained(text_embed_path)
         self.group_bert.save_pretrained(group_path)
