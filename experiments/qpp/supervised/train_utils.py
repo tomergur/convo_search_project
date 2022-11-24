@@ -9,9 +9,9 @@ def create_model(model_name, data_args):
     if data_args.groupwise_model:
         model = TFAutoModel.from_pretrained(model_name, from_pt=data_args.from_pt)
         if data_args.group_model_name_or_path:
-            group_model = TFBertForSequenceClassification(
+            group_model = TFBertForSequenceClassification.from_pretrained(
                 data_args.group_model_name_or_path, from_pt=True, num_hidden_layers=4,
-                num_labels=num_classes) if "seq" in data_args.output_mode else TFBertForTokenClassification(
+                num_labels=num_classes) if "seq" in data_args.output_mode else TFBertForTokenClassification.from_pretrained(
                 data_args.group_model_name_or_path, from_pt=True, num_hidden_layers=4, num_labels=num_classes)
         else:
             group_conf = BertConfig(num_hidden_layers=4, num_labels=num_classes)
