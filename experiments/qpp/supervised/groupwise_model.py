@@ -24,11 +24,13 @@ class GroupwiseBert(tf.keras.Model):
         # self.group_bert.layers[0].embeddings.word_embeddings.trainable=False
 
     @staticmethod
-    def from_pretrained(text_model_path, group_model_path, group_agg_func=None, output_mode=None):
-        text_model = TFAutoModel.from_pretrained(text_model_path)
+    def from_pretrained(model_path, group_agg_func=None, output_mode=None):
+
         # group_model = TFAutoModelForTokenClassification.from_pretrained(group_model_path)
         # "groupwise_bert"
-
+        text_model_path=model_path+"/text_embed/"
+        group_model_path=model_path+"/group_model/"
+        text_model = TFAutoModel.from_pretrained(text_model_path)
         with tf.name_scope("groupwise_bert") as scope:
             group_model = TFAutoModelForSequenceClassification.from_pretrained(
                 group_model_path) if "seq" in output_mode else TFAutoModelForTokenClassification.from_pretrained(

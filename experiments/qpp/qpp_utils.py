@@ -172,6 +172,9 @@ def calc_topic_corr(feature_values, labels, corr_type="pearson"):
         corr, p_val = scipy.stats.kendalltau(feature_lst, label_lst)
     else:
         corr, p_val = scipy.stats.spearmanr(feature_lst, label_lst)
+    if math.isnan(corr):
+        #float('NaN')
+        return 0
     return corr
 
 def evaluate_topic_predictor(feature_values, labels, corr_type="pearson"):

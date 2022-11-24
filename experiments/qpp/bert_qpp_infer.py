@@ -153,11 +153,10 @@ class GroupwiseBertQPP:
     # TODO modify infer parameter
     TOP_DOCS = 10
 
-    def __init__(self, searcher, text_model_path_pattern, group_model_path_pattern, col, append_history=False,
+    def __init__(self, searcher, model_path_pattern, col, append_history=False,
                  append_prev_turns=False, infer_mode="dialogue", group_agg_func=None, output_mode=None):
         self.searcher = searcher
-        self.text_model_path_pattern = text_model_path_pattern
-        self.group_model_path_pattern = group_model_path_pattern
+        self.model_path_pattern = model_path_pattern
         self.col = col
         self.method = None
         self.append_history = append_history
@@ -200,11 +199,11 @@ class GroupwiseBertQPP:
     def calc_qpp_features(self, queries, ctx):
         cur_method = list(ctx.values())[0]["method"]
         if cur_method != self.method:
-            text_model_path = self.text_model_path_pattern.format(self.col, cur_method)
-            group_model_path = self.group_model_path_pattern.format(self.col, cur_method)
+            model_path = self.model_path_pattern.format(self.col, cur_method)
             K.clear_session()
-            self.tokenizer = AutoTokenizer.from_pretrained(text_model_path, use_fast=True)
-            self.model = GroupwiseBert.from_pretrained(text_model_path, group_model_path,
+            #self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
+            self.tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
+            self.model = GroupwiseBert.from_pretrained(model_path,
                                                        group_agg_func=self.group_agg_func, output_mode=self.output_mode)
             self.method = cur_method
         if self.infer_mode == "dialogue":

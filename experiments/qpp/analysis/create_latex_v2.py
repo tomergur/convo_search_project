@@ -28,9 +28,15 @@ DEFAULT_SELECTED_FEATURES=["WIG_norm","WIG_norm_pt","NQC_norm","NQC_norm_pt","cl
 
 
 
-DEFAULT_SELECTED_FEATURES=["max_idf","avg_idf","bert_qpp_cls","many_turns_bert_qpp_tokens"]
+
+DEFAULT_SELECTED_FEATURES=["bert_qpp_cls","ref_hist_bert_qpp_cls","many_turns_bert_qpp_cls"]
+BASELINE_METHODS={"bert_qpp_cls":"*"}
+DEFAULT_SELECTED_FEATURES=["bert_qpp","bert_qpp_pt","ref_hist_bert_qpp","many_turns_bert_qpp_tokens","many_turns_bert_qpp_tokens_pt"]
+BASELINE_METHODS={"bert_qpp":"*"}
 REWRITE_METHODS=['t5','all','hqe','quretec']
-REWRITE_METHODS=['all','quretec']
+DEFAULT_REWRITE_METHODS=['all','quretec']
+#REWRITE_METHODS=['all']
+
 TWO_DIGITS_METRICS = ["PA","TPA"]
 
 QPP_EVAL_METRIC=["TPA","PA"]
@@ -73,16 +79,18 @@ METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC",
                      "st_bert_qpp_pt":"Bert QPP - fine tuned and HP per turn",
                      "st_bert_qpp_oracle_pt":"BERT QPP - fine tuned and HP per turn(HP selected by oracle)",
                      "bert_qpp_oracle": "BERT QPP - (HP selected by oracle for all turns)",
-                     "bert_qpp_cls":"Bert QPP(CE loss)","bert_qpp_reg":"Bert QPP(MSE loss)",
+                     "bert_qpp_cls":"Bert QPP","bert_qpp_reg":"Bert QPP(MSE loss)",
                      "bert_qpp_or_quac":"Bert QPP fine-tuned on Or QUAC",
                      "bert_qpp_topiocqa":"Bert QPP fine-tuned on TopioCQA",
                      "bert_qpp_hist":"Bert QPP+ raw history","bert_qpp_hist_or_quac":"Bert QPP+history fine-tuned on Or QUAC",
                      "bert_qpp_hist_topiocqa":"Bert QPP+history fine-tuned on TopioCQA",
                      "bert_qpp_prev":"Bert QPP+previous queries",
                      "many_turns_bert_qpp":"dialogue groupwise QPP",
+                     "many_turns_bert_qpp_tokens": "dialogue groupwise QPP",
                      "many_turns_bert_qpp_online": "dialogue groupwise QPP - online inference",
                      "many_turns_bert_qpp_hist": "dialogue groupwise QPP+raw history",
                      "many_turns_bert_qpp_prev": "dialogue groupwise QPP+previous queries",
+                     "ref_hist_bert_qpp_cls":"Bert QPP -REF RBO","many_turns_bert_qpp_cls":"dialogue groupwise QPP",
                      "ref_hist_bert_qpp":"Bert QPP -REF RBO","ref_hist_bert_qpp_pt":"Bert QPP - REF RBO, HP per turn "}
 
 def is_oracle(method_name):
@@ -171,7 +179,7 @@ def t_test_paired(new_method, baseline, alpha=.05):
     return t > 0 and p_val < alpha
 
 
-BASELINE_METHODS={"bert_qpp_cls":"*"}
+
 def get_ttest_vals(split_res, baseline_methods=BASELINE_METHODS):
     res = {}
     print(baseline_methods)
@@ -206,6 +214,7 @@ if __name__ == "__main__":
     parser.add_argument("--min_turn_samples",type=int,default=0)
     parser.add_argument("--table_type",default="normal")
     parser.add_argument("--output_file_name",default="latex_res.txt")
+    parser.add_argument("--rewrite_methods",nargs="+",default=DEFAULT_REWRITE_METHODS)
     args=parser.parse_args()
     metric=args.metric
     col=args.col
@@ -215,8 +224,10 @@ if __name__ == "__main__":
     qpp_res_dir_base = args.qpp_res_dir_base
     table_type = args.table_type
     output_file_name=args.output_file_name
+    REWRITE_METHODS=args.rewrite_methods
     EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
     RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
+
     sep_token="#" if col=="or_quac" else "_"
     corr_type=args.corr_type
     out_dir="{}/{}/{}/analysis/".format(qpp_res_dir_base,res_dir,col)
@@ -246,12 +257,13 @@ if __name__ == "__main__":
             feature_splits_res=features_exp[feature][rewrite_method]
             max_turns=len(feature_splits_res[0])
             turns=[0,1,2,4,6,8]
+            turns=range(max_turns)
             for i in turns:
                 turn_kendall=[feature_res[i] for feature_res in feature_splits_res]
                 turn_res=round(np.mean(turn_kendall),3)
                 print("num splits",len(turn_kendall))
-                feature_eval["$T_{"+str(i+1)+"}}K$"]=turn_res
-                split_eval["$T_{"+str(i+1)+"}}K$"]=turn_kendall
+                feature_eval["$T_{"+str(i+1)+"}K$"]=turn_res
+                split_eval["$T_{"+str(i+1)+"}K$"]=turn_kendall
                 print("eval table",i+1, turn_res)
             print("feature value calc:", time.time() - start_time)
             latex_res[rewrite_method][feature] = feature_eval
