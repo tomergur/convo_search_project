@@ -71,7 +71,8 @@ def create_many_docs_dataset(data_to_tokenize,max_rows_per_file):
             file_idx += 1
         j += 1
         queries=[query]*len(passages)
-        labels=[label]
+
+        labels= [label] if isinstance(label, float) else label
         serialize_dataset_row(queries, passages, labels, tokenizer, writer)
 
 def create_dialogue_dataset(data_to_tokenize,max_rows_per_file,split_token,selected_tid=None):
@@ -128,6 +129,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_mode",default="dialogue")
     parser.add_argument("--selected_tid",default=None)
     parser.add_argument("--top_docs",type=int,default=1)
+    parser.add_argument("--qrel_path",default=None)
 
     # parser.add_argument('--qrel_path',default=QREL_PATH)
     args = parser.parse_args()
@@ -144,9 +146,12 @@ if __name__ == "__main__":
     assert(dataset_mode in VALID_DATASET_MODES)
     top_docs=args.top_docs
     selected_tid=args.selected_tid
+    qrel_path=args.qrel_path
     query_field_name = "second_stage_queries" if args.is_rerank else 'first_stage_rewrites'
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=True)
     input_file = "{}/{}/{}/{}_queries.json".format(RES_PATH, setting_name, col, run_name)
+    qrel=pd.read_csv(qrel_path, header=None, names=["qid", "Q0", "docid", "grade"],
+                    delimiter="\t", dtype={"docid": str}) if qrel_path else None
     with open(input_file) as f:
         queries = json.load(f)
 
@@ -193,6 +198,14 @@ if __name__ == "__main__":
         top_doc_ids = top_docs[qid]
         docs = [searcher.doc(top_doc_id) for top_doc_id in top_doc_ids]
         label = metrics_values.get(qid,DEFAULT_LABEL)
+        if qrel is not None:
+            #print("qrel",qrel)
+            q_qrel=qrel[qrel.qid==qid]
+            #print("q qrel",q_qrel)
+            q_labels=q_qrel.set_index('docid').grade.to_dict()
+            #print("q labels",q_labels)
+            label=[q_labels.get(top_doc_id,0) for top_doc_id in top_doc_ids]
+
         passages = [json.loads(doc.raw())["contents"] for doc in docs]
         data_to_tokenize[qid]=(query,passages,label)
     if dataset_mode=="many_docs":

@@ -68,6 +68,8 @@ class DataArguments:
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_exp_doc_5/*.tfrecords"
     model_name_or_path: str = "bert_base_uncased"
     group_model_name_or_path: str = None
+    chunk_size: int =2
+    use_bert_pl: bool = False
     info_dir: str = "/v/tomergur/convo/reranking/models/exprs/"
     checkpoint_dir: str = None
     save_best_only: bool = False
@@ -104,6 +106,8 @@ if __name__ == "__main__":
     with strategy.scope():
         model = create_model(model_name_or_path, data_args)
         loss =ce_loss if not data_args.use_mse else tf.keras.losses.MeanSquaredError()
+        if data_args.use_bert_pl:
+            loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         metrics = []
         # metrics = metrics
         #for debug ,run_eagerly=True
@@ -116,6 +120,10 @@ if __name__ == "__main__":
                                            parse_func)
             valid_dataset = create_dataset(data_args.valid_files, training_args.eval_batch_size,
                                            training_args.eval_steps)
+            if data_args.use_bert_pl:
+                train_dataset=train_dataset.map(lambda x ,y: (x,tf.math.reduce_sum(tf.reshape(y,[-1,data_args.chunk_size]),axis=-1)))
+                valid_dataset=valid_dataset.map(lambda x ,y: (x,tf.math.reduce_sum(tf.reshape(y,[-1,data_args.chunk_size]),axis=-1)))
+
             callbacks = []
             tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
             if data_args.early_stop:

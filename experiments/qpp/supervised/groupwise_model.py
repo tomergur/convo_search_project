@@ -31,11 +31,16 @@ class GroupwiseBert(tf.keras.Model):
         text_model_path=model_path+"/text_embed/"
         group_model_path=model_path+"/group_model/"
         text_model = TFAutoModel.from_pretrained(text_model_path)
+
         with tf.name_scope("groupwise_bert") as scope:
             group_model = TFAutoModelForSequenceClassification.from_pretrained(
                 group_model_path) if "seq" in output_mode else TFAutoModelForTokenClassification.from_pretrained(
                 group_model_path)
-
+        '''
+        group_model = TFAutoModelForSequenceClassification.from_pretrained(
+                group_model_path) if "seq" in output_mode else TFAutoModelForTokenClassification.from_pretrained(
+                group_model_path)
+         '''
         return GroupwiseBert(text_model, group_model, group_agg_func, output_mode=output_mode)
 
     def online_output(self, text_emb, training):
@@ -59,10 +64,6 @@ class GroupwiseBert(tf.keras.Model):
         seq_length = input_shape[1]
         entry_length=input_shape[2]
         inputs = {k: tf.reshape(v, [-1, entry_length]) for k, v in inputs.items()}
-        '''
-        if len(tf.shape(inputs['input_ids']))>2:
-            inputs={k:tf.squeeze(v,0) for k,v in inputs.items()}
-        '''
         #tf.print(tf.shape(inputs['input_ids']))
         bert_res = self.text_bert(**inputs, training=training)
         # text_emb=tf.expand_dims(bert_res.last_hidden_state[:,0,:],0)
