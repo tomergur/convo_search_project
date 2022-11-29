@@ -33,7 +33,7 @@ def ce_loss(y_true, y_pred):
     y_true=tf.reshape(y_true,[-1,1])
     non_rel_prob = tf.ones_like(y_true, dtype=tf.float32) - y_true
     probs=tf.concat([non_rel_prob, y_true], axis=1)
-    tf.print(probs)
+    #tf.print(probs)
     #tf.print("loss:", tf.shape(y_pred),tf.shape(probs),tf.shape(y_true))
     loss = -1 * (tf.math.multiply(scores,probs))
     loss = tf.reduce_sum(loss, axis=-1)
