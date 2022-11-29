@@ -16,6 +16,7 @@ from .qpp_utils import load_data, create_label_dict, create_ctx, calc_topic_corr
 REWRITE_METHODS = ['raw', 't5', 'all', 'hqe', 'quretec', 'manual']
 REWRITE_METHODS = ['t5', 'all', 'hqe', 'quretec']
 REWRITE_METHODS = ['all', 'quretec']
+#REWRITE_METHODS = ['all']
 DEFAULT_RES_DIR = "rerank_kld_100"
 DEFAULT_COL = "cast19"
 DEFAULT_QPP_RES_DIR = "/lv_local/home/tomergur/convo_search_project/data/qpp/topic_comp/"
@@ -142,6 +143,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_turn", type=int, default=10)
     parser.add_argument("--subsamples_size", type=int, default=50)
     parser.add_argument("--per_turn_tunning", action='store_true', default=False)
+    parser.add_argument("--oracle_tunning",action='store_true',default=False)
     args = parser.parse_args()
     metric = args.metric
     col = args.col
@@ -156,6 +158,7 @@ if __name__ == "__main__":
     max_turn = args.max_turn
     subsamples_size = args.subsamples_size
     per_turn_tunning = args.per_turn_tunning
+    oracle_tunning=args.oracle_tunning
     EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
     RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
     runs, rewrites, rewrites_eval, turns_text = load_data(REWRITE_METHODS, EVAL_PATH, RUNS_PATH, query_rewrite_field,
@@ -246,10 +249,10 @@ if __name__ == "__main__":
                         turn_fold_2_corr = [evaluate_topic_predictor(x, fold2_labels, "sturn_{}_kendall".format(i)) for
                                             x in turn_features_values_fold_2]
 
-                        fold1_selected_hp = np.argmax(turn_fold_1_corr)
+                        fold1_selected_hp = np.argmax(turn_fold_1_corr) if not oracle_tunning else np.argmax(turn_fold_2_corr)
                         res_fold_a.update(turn_features_values_fold_2[fold1_selected_hp])
 
-                        fold2_selected_hp = np.argmax(turn_fold_2_corr)
+                        fold2_selected_hp = np.argmax(turn_fold_2_corr) if not oracle_tunning else np.argmax(turn_fold_1_corr)
                         res_fold_b.update(turn_features_values_fold_1[fold2_selected_hp])
 
                     corr_fold_a=evaluate_topic_predictor(res_fold_a, fold2_labels, qpp_eval_metric)
@@ -265,11 +268,11 @@ if __name__ == "__main__":
                     fold2_corr = [evaluate_topic_predictor(x, fold2_labels, qpp_eval_metric) for x in
                                   features_values_fold_2]
 
-                    fold1_selected_hp = np.argmax(fold1_corr)
+                    fold1_selected_hp = np.argmax(fold1_corr) if not oracle_tunning else np.argmax(fold2_corr)
                     corr_fold_a = fold2_corr[fold1_selected_hp]
                     res_fold_a = features_values_fold_2[fold1_selected_hp]
 
-                    fold2_selected_hp = np.argmax(fold2_corr)
+                    fold2_selected_hp = np.argmax(fold2_corr) if not oracle_tunning else np.argmax(fold1_corr)
                     corr_fold_b = fold1_corr[fold2_selected_hp]
                     res_fold_b = features_values_fold_1[fold2_selected_hp]
 
@@ -307,6 +310,8 @@ if __name__ == "__main__":
             print("calc time:", time.time() - start_time)
         # write corr results for stat sgni.
         run_name =feature+"_pt" if per_turn_tunning else feature
+        run_name = run_name + "_oracle" if oracle_tunning else run_name
+
         feature_r_vals_path = "{}/exp_{}_{}_{}_{}.json".format(qpp_res_dir, qpp_eval_metric, run_name, metric,
                                                                num_splits)
         with open(feature_r_vals_path, 'w') as f:

@@ -3,7 +3,7 @@ import json
 import tensorflow as tf
 from keras import backend as K
 from .supervised.groupwise_model import GroupwiseBert
-
+from .supervised.bert_pl import BertPL
 
 def truncate_query(query, tokenizer, max_length=128):
     q_tokens = tokenizer(query)
@@ -147,6 +147,46 @@ class BertQPP:
         res = scores[0, -1]
         # print("query res",res,type(res.item()))
         return float(res.item())
+
+
+class BertPLQPP:
+    # TODO modify infer parameter
+    TOP_DOCS = 10
+    def __init__(self,searcher,model_path_pattern,col,chunk_size):
+        self.searcher=searcher
+        self.model_path_pattern=model_path_pattern
+        self.col= col
+        self.i=0
+        self.chunk_size=chunk_size
+        self.method=None
+
+    def calc_qpp_feature(self, query, **ctx):
+        if self.i % 100 == 0:
+            print("bert qpp:", self.i)
+        self.i += 1
+        cur_method = ctx["method"]
+        if cur_method != self.method:
+            model_path = self.model_path_pattern.format(self.col, cur_method)
+            self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
+            self.model = BertPL.from_pretrained(model_path,self.chunk_size)
+            self.method = cur_method
+        passages = [get_passage(self.searcher, ctx['res_list'][i][0]) for i in range(BertPLQPP.TOP_DOCS)]
+        query = [modify_query(query, ctx, False,False)]*len(passages)
+        return self.calc_query_score(query, passages)
+
+    def calc_query_score(self, queries, passages):
+        trunc_queries = [truncate_query(query, self.tokenizer) for query in queries]
+        ret = self.tokenizer(trunc_queries, passages, max_length=512, truncation=True, return_token_type_ids=True,
+                             return_tensors='tf', padding=True)
+        ret={k:tf.expand_dims(v,0) for k,v in ret.items()}
+        logits = self.model(ret, training=False)
+        scores = tf.keras.layers.Activation(tf.nn.softmax)(logits)
+        print("scores",scores.numpy())
+        num_rel=tf.math.argmax(scores,axis=-1).numpy()
+        print("num rel",num_rel)
+        return sum([s.item()/i for i,s in enumerate(num_rel,start=1)])
+        return [s.item() for s in scores[:, -1]]
+
 
 
 class GroupwiseBertQPP:

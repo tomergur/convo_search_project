@@ -37,12 +37,13 @@ QPP_FEATURES_PARAMS = {"WIG": [{"k": v} for v in K_VALS],
                        "ref_rewrites_NQC_norm": [{"k": k, "n": n, "lambd": lambd} for k, n, lambd in
                                                  itertools.product(K_VALS, RBO_N_VALS, LAMBD_VALS)],
                        "bert_qpp": [{"suffix": v} for v in ["_v1_1","_v1_2","_v1_3", "_v2_1","_v2_2","_v2_3"]],
+                       "bert_pl": [{"suffix": v} for v in ["_v2_1", "_v2_2", "_v2_3","_v1_1", "_v1_2", "_v1_3"]],
                        "bert_qpp_cls": [{"suffix": v} for v in ["_v1", "_v2"]],
                        "bert_qpp_hist": [{"suffix": v} for v in ["_v1", "_v2", "_v3", "_v4"]],
                        "st_bert_qpp": [{"suffix": v} for v in ["_v1", "_v2", "_v3", "_v4"]],
                        "bert_qpp_prev": [{"suffix": v} for v in ["_v1", "_v2", "_v3", "_v4"]],
                        "many_turns_bert_qpp": [{"suffix": v} for v in ["_v1", "_v2"]],
-                       "many_turns_bert_qpp_tokens": [{"suffix": v} for v in ["_v1_1","_v1_2","_v1_3","_v1_4","_v1_5","_v2_1","_v2_2","_v2_3","_v2_4","_v2_5"]],
+                       "many_turns_bert_qpp_tokens": [{"suffix": v} for v in ["_v1_1","_v1_2","_v1_3","_v2_1","_v2_2","_v2_3"]],
                        "many_turns_bert_qpp_tokens_init": [{"suffix": v} for v in
                                                       ["_v4_1", "_v4_2", "_v4_3", "_v4_4", "_v4_5"]],
 

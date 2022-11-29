@@ -1,8 +1,18 @@
 import tensorflow as tf
 import keras_nlp
-
+from transformers import TFAutoModel
 
 class BertPL(tf.keras.Model):
+    @staticmethod
+    def from_pretrained(model_path, chunk_size):
+        # group_model = TFAutoModelForTokenClassification.from_pretrained(group_model_path)
+        # "groupwise_bert"
+        text_model_path = model_path + "/text_embed/"
+        text_model = TFAutoModel.from_pretrained(text_model_path)
+        bert_pl=BertPL(text_model,chunk_size)
+        bert_pl.chunk_encoder.load_weights('{}/chunk_encoder.h5'.format(model_path))
+        return bert_pl
+
     def __init__(self,text_encoder,chunk_size):
         super(BertPL, self).__init__()
         self.text_encoder=text_encoder
@@ -34,7 +44,7 @@ class BertPL(tf.keras.Model):
         text_enc_path=model_path+"/text_embed/"
         self.text_encoder.save_pretrained(text_enc_path)
         #self.lstm.save_weights('{}/lstm.ckp'.format(model_path))
-        self.chunk_encoder.save_weights('{}/chunk_encoder.ckp'.format(model_path))
+        self.chunk_encoder.save_weights('{}/chunk_encoder.h5'.format(model_path))
 
 
 

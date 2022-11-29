@@ -69,6 +69,7 @@ def create_ctx(runs, rewrites, turns_text, col="cast19"):
     REWRITE_REF_LIST = ["t5", "all", "hqe", "quretec"]
     #REWRITE_REF_LIST=["t5"]
     REWRITE_REF_LIST = ["all","quretec"]
+    REWRITE_REF_LIST = ["all"]
     res_lists = {}
     for method_name, method_runs in runs.items():
         res_lists[method_name] = {qid: list(zip(q_run.docid.tolist(), q_run.score.tolist())) for qid, q_run in

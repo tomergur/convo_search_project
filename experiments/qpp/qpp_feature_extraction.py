@@ -8,7 +8,7 @@ from .pre_ret_qpp import QueryLen, TurnNumber, MaxIDF, AvgIDF, MaxSCQ, AvgSCQ, M
 from .post_ret_qpp import WIG, Clairty, NQC, NQCNorm, WIGNorm, ClairtyNorm
 from .ref_list_qpp import RefListQPP, HistQPP
 from .cached_qpp import CachedQPP
-from .bert_qpp_infer import BertQPP, GroupwiseBertQPP ,SingleTurnBertQPP
+from .bert_qpp_infer import BertQPP, GroupwiseBertQPP ,SingleTurnBertQPP , BertPLQPP
 from .collection_lm import CollectionLM
 
 
@@ -60,6 +60,9 @@ class QPPFeatureFactory:
         qpp_dict["bert_qpp_hist_topiocqa"] = lambda: BertQPP(self.searcher,
                                                              "/v/tomergur/convo/qpp_models/bert_qpp_hist_rerank/{}_{}",
                                                              "topiocqa", True)
+        qpp_dict["bert_pl"] = lambda hp_config: BertPLQPP(self.searcher,
+                                                                            "/v/tomergur/convo/qpp_models/bert_pl_rerank/{}_{}" +
+                                                                             hp_config['suffix'], col,2)
         qpp_dict["many_turns_bert_qpp_cls"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
                                                                                  "/v/tomergur/convo/qpp_models_backup/many_turns_qpp_rerank_tokens/{}_{}" +
                                                                                  hp_config['suffix'],col,output_mode="online")
