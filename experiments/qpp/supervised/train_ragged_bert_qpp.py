@@ -1,10 +1,10 @@
 import tensorflow as tf
 from transformers import AutoTokenizer
 from transformers import HfArgumentParser, TFTrainingArguments
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import json
 import os
-from experiments.qpp.supervised.train_utils import create_model,ce_loss,CheckpointTransformerModel
+from experiments.qpp.supervised.train_utils import create_model,ce_loss,CheckpointTransformerModel,ModelArguments
 
 FEATURE_DESC = {
     'input_ids': tf.io.RaggedFeature(value_key="input_ids",partitions=[tf.io.RaggedFeature.UniformRowLength(512)],dtype=tf.int64),
@@ -13,7 +13,7 @@ FEATURE_DESC = {
     'labels': tf.io.RaggedFeature(value_key="labels",partitions=[tf.io.RaggedFeature.UniformRowLength(1)],dtype=tf.float32)
 }
 
-MAX_SEQ_LENGTH=10
+MAX_SEQ_LENGTH=6
 def _parse_function(example_proto):
     # Parse the input `tf.train.Example` proto using the dictionary above.
     example = tf.io.parse_single_example(example_proto, FEATURE_DESC)
@@ -66,27 +66,18 @@ class DataArguments:
     sup_train_files: str = None
     valid_files: str = "/v/tomergur/convo/reranking/quac_dev_all/*.tfrecords"
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_exp_doc_5/*.tfrecords"
-    model_name_or_path: str = "bert_base_uncased"
-    group_model_name_or_path: str = None
-    chunk_size: int =2
-    use_bert_pl: bool = False
     info_dir: str = "/v/tomergur/convo/reranking/models/exprs/"
     checkpoint_dir: str = None
     save_best_only: bool = False
     backup_dir: str = None
-    from_pt: bool = False
     early_stop: bool = False
-    groupwise_model: bool = True
-    group_agg_func: str = None
-    output_mode : str = None
-    use_mse: bool = False
+
 
 
 if __name__ == "__main__":
-    parser = HfArgumentParser((DataArguments, TFTrainingArguments))
-    data_args, training_args = parser.parse_args_into_dataclasses()
+    parser = HfArgumentParser((DataArguments, TFTrainingArguments,ModelArguments))
+    data_args, training_args,model_args = parser.parse_args_into_dataclasses()
     # Create a description of the features.
-    model_name_or_path = data_args.model_name_or_path
     # model_name="bert-base-uncased"
     #assert((data_args.group_agg_func and data_args.use_mse) or (not data_args.group_agg_func))
     run_name = training_args.run_name.split("/")[-2] if "/" in training_args.run_name else training_args.run_name
@@ -104,9 +95,9 @@ if __name__ == "__main__":
         json.dump(data_args.__dict__, f, indent=True)
     strategy = training_args.strategy
     with strategy.scope():
-        model = create_model(model_name_or_path, data_args)
-        loss =ce_loss if not data_args.use_mse else tf.keras.losses.MeanSquaredError()
-        if data_args.use_bert_pl:
+        model = create_model(model_args)
+        loss =ce_loss if not model_args.use_mse else tf.keras.losses.MeanSquaredError()
+        if model_args.use_bert_pl:
             loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         metrics = []
         # metrics = metrics
@@ -120,12 +111,12 @@ if __name__ == "__main__":
                                            parse_func)
             valid_dataset = create_dataset(data_args.valid_files, training_args.eval_batch_size,
                                            training_args.eval_steps)
-            if data_args.use_bert_pl:
+            if model_args.use_bert_pl:
                 train_dataset=train_dataset.map(lambda x ,y: (x,tf.math.reduce_sum(tf.reshape(y,[-1,data_args.chunk_size]),axis=-1)))
                 valid_dataset=valid_dataset.map(lambda x ,y: (x,tf.math.reduce_sum(tf.reshape(y,[-1,data_args.chunk_size]),axis=-1)))
 
             callbacks = []
-            tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+            tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path)
             if data_args.early_stop:
                 callbacks.append(tf.keras.callbacks.EarlyStopping(monitor="val_loss", restore_best_weights=True))
             if data_args.backup_dir:

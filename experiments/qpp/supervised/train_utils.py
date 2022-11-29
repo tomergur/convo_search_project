@@ -2,29 +2,48 @@ from transformers import TFAutoModelForSequenceClassification, TFAutoModel, TFAu
 from transformers.models.bert import BertConfig, TFBertForTokenClassification, TFBertForSequenceClassification
 from experiments.qpp.supervised.groupwise_model import GroupwiseBert
 from  experiments.qpp.supervised.bert_pl import BertPL
+from  experiments.qpp.supervised.seq_qpp_model import SeqQPP
 import tensorflow as tf
 import keras
+from dataclasses import dataclass
 
-def create_model(model_name, data_args):
-    if hasattr(data_args, "use_bert_pl" ) and data_args.use_bert_pl:
-        model = TFAutoModel.from_pretrained(model_name, from_pt=data_args.from_pt)
-        return BertPL(model,data_args.chunk_size)
+@dataclass
+class ModelArguments:
+    model_type:str ="bert_qpp"
+    model_name_or_path: str = "bert_base_uncased"
+    group_model_name_or_path: str = None
+    chunk_size: int =2
+    use_bert_pl: bool = False
+    from_pt: bool = False
+    groupwise_model: bool = True
+    group_agg_func: str = None
+    output_mode : str = None
+    use_mse: bool = False
 
-    num_classes = 1 if data_args.use_mse else 2
-    if data_args.groupwise_model:
-        model = TFAutoModel.from_pretrained(model_name, from_pt=data_args.from_pt)
-        if data_args.group_model_name_or_path:
+def create_model(model_args):
+    model_name=model_args.model_name_or_path
+    if model_args.model_type=="seqQPP":
+        model = TFAutoModel.from_pretrained(model_name, from_pt=model_args.from_pt)
+        return SeqQPP(model)
+    if hasattr(model_args, "use_bert_pl" ) and model_args.use_bert_pl:
+        model = TFAutoModel.from_pretrained(model_name, from_pt=model_args.from_pt)
+        return BertPL(model,model_args.chunk_size)
+
+    num_classes = 1 if model_args.use_mse else 2
+    if model_args.groupwise_model:
+        model = TFAutoModel.from_pretrained(model_name, from_pt=model_args.from_pt)
+        if model_args.group_model_name_or_path:
             group_model = TFBertForSequenceClassification.from_pretrained(
-                data_args.group_model_name_or_path, from_pt=True, num_hidden_layers=4,
-                num_labels=num_classes) if "seq" in data_args.output_mode else TFBertForTokenClassification.from_pretrained(
-                data_args.group_model_name_or_path, from_pt=True, num_hidden_layers=4, num_labels=num_classes)
+                model_args.group_model_name_or_path, from_pt=True, num_hidden_layers=4,
+                num_labels=num_classes) if "seq" in model_args.output_mode else TFBertForTokenClassification.from_pretrained(
+                model_args.group_model_name_or_path, from_pt=True, num_hidden_layers=4, num_labels=num_classes)
         else:
             group_conf = BertConfig(num_hidden_layers=4, num_labels=num_classes)
             group_model = TFBertForSequenceClassification(
-                group_conf) if "seq" in data_args.output_mode  else TFBertForTokenClassification(group_conf)
-        return GroupwiseBert(model, group_model, data_args.group_agg_func, data_args.output_mode)
+                group_conf) if "seq" in model_args.output_mode  else TFBertForTokenClassification(group_conf)
+        return GroupwiseBert(model, group_model, model_args.group_agg_func, model_args.output_mode)
 
-    model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt,
+    model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=model_args.from_pt,
                                                                  num_labels=num_classes)
     return model
 
