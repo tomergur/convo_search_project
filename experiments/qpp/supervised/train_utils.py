@@ -6,7 +6,7 @@ import tensorflow as tf
 import keras
 
 def create_model(model_name, data_args):
-    if "use_bert_pl" in data_args and data_args.use_bert_pl:
+    if hasattr(data_args, "use_bert_pl" ) and data_args.use_bert_pl:
         model = TFAutoModel.from_pretrained(model_name, from_pt=data_args.from_pt)
         return BertPL(model,data_args.chunk_size)
 
