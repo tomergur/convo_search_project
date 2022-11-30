@@ -4,7 +4,7 @@ from transformers import HfArgumentParser, TFTrainingArguments
 from dataclasses import dataclass, field
 import json
 import os
-from experiments.qpp.supervised.train_utils import create_model, ce_loss, CheckpointTransformerModel
+from experiments.qpp.supervised.train_utils import create_model, ce_loss, CheckpointTransformerModel,ModelArguments
 
 FEATURE_DESC = {
     'input_ids': tf.io.FixedLenFeature([512], tf.int64),
@@ -38,12 +38,6 @@ def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_funct
     return train_dataset.batch(batch_size)
 
 
-'''
-def create_model(model_name, data_args):
-    num_labels = 1 if data_args.use_mse else 2
-    model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=data_args.from_pt, num_labels=num_labels)
-    return model
-'''
 
 
 @dataclass
@@ -52,23 +46,18 @@ class DataArguments:
     sup_train_files: str = None
     valid_files: str = "/v/tomergur/convo/reranking/quac_dev_all/*.tfrecords"
     test_files: str = "/v/tomergur/convo/ms_marco/records_dev_exp_doc_5/*.tfrecords"
-    model_name_or_path: str = "bert_base_uncased"
-    group_model_name_or_path: str = None
     info_dir: str = "/v/tomergur/convo/reranking/models/exprs/"
     checkpoint_dir: str = None
+    backup_dir:str = None
     save_best_only: bool = False
-    backup_dir: str = None
-    from_pt: bool = False
     early_stop: bool = False
-    use_mse: bool = False
-    groupwise_model: bool = False
 
 
 if __name__ == "__main__":
-    parser = HfArgumentParser((DataArguments, TFTrainingArguments))
-    data_args, training_args = parser.parse_args_into_dataclasses()
+    parser = HfArgumentParser((DataArguments, TFTrainingArguments,ModelArguments))
+    data_args, training_args,model_args = parser.parse_args_into_dataclasses()
     # Create a description of the features.
-    model_name_or_path = data_args.model_name_or_path
+    model_name_or_path = model_args.model_name_or_path
     # model_name="bert-base-uncased"
     run_name = training_args.run_name.split("/")[-2] if "/" in training_args.run_name else training_args.run_name
     if not os.path.exists(training_args.output_dir):
@@ -85,12 +74,11 @@ if __name__ == "__main__":
     with open("{}/{}".format(info_expr_dir, "data_args.json"), 'w') as f:
         json.dump(data_args.__dict__, f, indent=True)
     with training_args.strategy.scope():
-        model = create_model(model_name_or_path, data_args)
-        loss = ce_loss if not data_args.use_mse else tf.keras.losses.MeanSquaredError()
+        model = create_model(model_args)
+        loss = ce_loss if not model_args.use_mse else tf.keras.losses.MeanSquaredError()
         metrics = []
         # metrics = metrics
         # for debug ,run_eagerly=True
-        print("")
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=training_args.learning_rate), loss=loss,
                       metrics=metrics)
         if training_args.do_train:
@@ -126,7 +114,7 @@ if __name__ == "__main__":
             if data_args.checkpoint_dir and data_args.save_best_only:
                 model.load_weights(data_args.checkpoint_dir)
 
-            if data_args.groupwise_model:
+            if model_args.groupwise_model:
                 text_embed_path = "{}/text_embed".format(training_args.output_dir)
                 group_path = "{}/group_model".format(training_args.output_dir)
                 tokenizer.save_pretrained(text_embed_path)

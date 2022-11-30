@@ -4,6 +4,7 @@ import tensorflow as tf
 from keras import backend as K
 from .supervised.groupwise_model import GroupwiseBert
 from .supervised.bert_pl import BertPL
+from .supervised.seq_qpp_model import SeqQPP
 
 def truncate_query(query, tokenizer, max_length=128):
     q_tokens = tokenizer(query)
@@ -194,7 +195,7 @@ class GroupwiseBertQPP:
     TOP_DOCS = 10
 
     def __init__(self, searcher, model_path_pattern, col, append_history=False,
-                 append_prev_turns=False, infer_mode="dialogue", group_agg_func=None, output_mode=None):
+                 append_prev_turns=False, infer_mode="dialogue", group_agg_func=None, output_mode=None,seqQPP=False):
         self.searcher = searcher
         self.model_path_pattern = model_path_pattern
         self.col = col
@@ -207,6 +208,7 @@ class GroupwiseBertQPP:
         self.group_agg_func = group_agg_func
         self.output_mode = output_mode
         assert (not (append_history and append_prev_turns))
+        self.seqQPP=seqQPP
 
     def calc_group_scores(self, queries, passages):
         trunc_queries = [truncate_query(query, self.tokenizer) for query in queries]
@@ -217,6 +219,7 @@ class GroupwiseBertQPP:
         if len(logits.shape) == 0:
             return [logits.numpy().item()]
         scores = tf.keras.layers.Activation(tf.nn.softmax)(logits) if logits.shape[1] > 1 else logits
+        scores= tf.squeeze(scores,0) if len(tf.shape(scores))>2 else scores
         scores = scores.numpy()
         return [s.item() for s in scores[:, -1]]
 
@@ -242,8 +245,12 @@ class GroupwiseBertQPP:
             model_path = self.model_path_pattern.format(self.col, cur_method)
             K.clear_session()
             #self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
+            #TODO: change tokenizer path
             self.tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
-            self.model = GroupwiseBert.from_pretrained(model_path,
+            if self.seqQPP:
+                self.model = SeqQPP.from_pretrained(model_path)
+            else:
+                self.model = GroupwiseBert.from_pretrained(model_path,
                                                        group_agg_func=self.group_agg_func, output_mode=self.output_mode)
             self.method = cur_method
         if self.infer_mode == "dialogue":
@@ -260,7 +267,7 @@ class GroupwiseBertQPP:
         res = {}
         for sid, s_qids in sessions.items():
             s_qids.sort()
-            # print(sid,s_qids)
+            #print(sid,s_qids)
             if self.i % 100 == 0:
                 print("group bert qpp:", self.i)
             self.i += 1

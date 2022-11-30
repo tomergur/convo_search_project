@@ -15,7 +15,7 @@ class ModelArguments:
     chunk_size: int =2
     use_bert_pl: bool = False
     from_pt: bool = False
-    groupwise_model: bool = True
+    groupwise_model: bool = False
     group_agg_func: str = None
     output_mode : str = None
     use_mse: bool = False

@@ -63,6 +63,9 @@ class QPPFeatureFactory:
         qpp_dict["bert_pl"] = lambda hp_config: BertPLQPP(self.searcher,
                                                                             "/v/tomergur/convo/qpp_models/bert_pl_rerank/{}_{}" +
                                                                              hp_config['suffix'], col,2)
+        qpp_dict["seq_qpp"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
+                                                                                 "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank_seq/{}_{}" +
+                                                                                 hp_config['suffix'],col,seqQPP=True)
         qpp_dict["many_turns_bert_qpp_cls"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
                                                                                  "/v/tomergur/convo/qpp_models_backup/many_turns_qpp_rerank_tokens/{}_{}" +
                                                                                  hp_config['suffix'],col,output_mode="online")
