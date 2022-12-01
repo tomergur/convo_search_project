@@ -13,7 +13,7 @@ FEATURE_DESC = {
     'labels': tf.io.RaggedFeature(value_key="labels",partitions=[tf.io.RaggedFeature.UniformRowLength(1)],dtype=tf.float32)
 }
 
-MAX_SEQ_LENGTH=10
+MAX_SEQ_LENGTH=9
 def _parse_function(example_proto):
     # Parse the input `tf.train.Example` proto using the dictionary above.
     example = tf.io.parse_single_example(example_proto, FEATURE_DESC)

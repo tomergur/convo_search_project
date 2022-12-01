@@ -114,6 +114,7 @@ class BertQPP:
         self.i = 0
         self.append_prev_turns = append_prev_turns
         assert (not (append_history and append_prev_turns))
+        self.batch_size=8
 
     def calc_qpp_feature(self, query, **ctx):
         if self.i % 100 == 0:
@@ -130,6 +131,37 @@ class BertQPP:
         passage = get_passage(self.searcher, top_doc_id)
         query = modify_query(query, ctx, self.append_history, self.append_prev_turns)
         return self.calc_score(query, passage)
+
+    def calc_qpp_features(self, queries, ctx):
+        qids=list(queries.keys())
+        cur_method = ctx[qids[0]]["method"]
+        if cur_method != self.method:
+            model_path = self.model_name_or_path_pattern.format(self.col, cur_method)
+            self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
+            self.model = TFAutoModelForSequenceClassification.from_pretrained(model_path)
+            self.method = cur_method
+        queries_text=[]
+        passages=[]
+        for qid in qids:
+            query=queries[qid]
+            q_ctx=ctx[qid]
+            res_list = q_ctx["res_list"]
+            top_doc_id = res_list[0][0]
+            passage = get_passage(self.searcher, top_doc_id)
+            query = modify_query(query, q_ctx, self.append_history, self.append_prev_turns)
+            queries_text.append(query)
+            passages.append(passage)
+        ret = self.tokenizer(queries_text,passages, max_length=512, truncation=True, padding="max_length", return_token_type_ids=True, return_tensors='tf')
+        pairs_ds = tf.data.Dataset.from_tensor_slices(
+                {"input_ids": ret['input_ids'], "attention_mask": ret['attention_mask'],
+                 "token_type_ids": ret['token_type_ids']})
+        logits = self.model.predict(pairs_ds.batch(self.batch_size), batch_size=self.batch_size, verbose=1).logits
+        tf.keras.layers.Activation(tf.nn.softmax)(logits)
+        scores = tf.keras.layers.Activation(tf.nn.softmax)(logits) if logits.shape[1] > 1 else logits
+        scores = scores.numpy()
+        res={qids[i]: scores[i,-1] for i in range(len(qids)) }
+        return res
+
 
     def calc_score(self, query, passage):
         trunc_query = truncate_query(query, self.tokenizer)

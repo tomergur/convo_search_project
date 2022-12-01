@@ -80,7 +80,6 @@ if __name__ == "__main__":
     #fig, axs = plt.subplots(2, 2,sharex=False,sharey=True,figsize=(15,8))
     fig, axs = plt.subplots(2, sharex=False, sharey=True, figsize=(15, 8))
     for j,rewrite_method in enumerate(REWRITE_METHODS):
-
         print("turn analysis for:",rewrite_method)
         method_label=label_dict[rewrite_method]
         print("num queries:",len(method_label))
