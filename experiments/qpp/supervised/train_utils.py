@@ -15,9 +15,8 @@ class ModelArguments:
     chunk_size: int =2
     use_bert_pl: bool = False
     from_pt: bool = False
-    groupwise_model: bool = False
     group_agg_func: str = None
-    output_mode : str = None
+    output_mode : str = "tokens"
     use_mse: bool = False
 
 def create_model(model_args):
@@ -30,7 +29,7 @@ def create_model(model_args):
         return BertPL(model,model_args.chunk_size)
 
     num_classes = 1 if model_args.use_mse else 2
-    if model_args.groupwise_model:
+    if model_args.model_type=="groupwise":
         model = TFAutoModel.from_pretrained(model_name, from_pt=model_args.from_pt)
         if model_args.group_model_name_or_path:
             group_model = TFBertForSequenceClassification.from_pretrained(
@@ -48,8 +47,11 @@ def create_model(model_args):
     return model
 
 def ce_loss(y_true, y_pred):
-    scores = tf.nn.log_softmax(y_pred)
     y_true=tf.reshape(y_true,[-1,1])
+    #tf.print("y_pred_shape", tf.shape(y_pred))
+    y_pred=tf.reshape(y_pred,[-1,2])
+    #tf.print("loss:", tf.shape(y_pred), tf.shape(y_true))
+    scores = tf.nn.log_softmax(y_pred)
     non_rel_prob = tf.ones_like(y_true, dtype=tf.float32) - y_true
     probs=tf.concat([non_rel_prob, y_true], axis=1)
     #tf.print(probs)

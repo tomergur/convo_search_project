@@ -60,7 +60,7 @@ VALID_DATASET_MODES=["dialogue","many_docs"]
 def create_many_docs_dataset(data_to_tokenize,max_rows_per_file):
     j = 0
     file_idx = 1
-    for qid, (query, q_passages, label) in data_to_tokenize.items():
+    for qid, (query, passages, label) in data_to_tokenize.items():
         if label is None:
             print("missing label")
             continue

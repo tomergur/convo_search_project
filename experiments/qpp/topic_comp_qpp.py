@@ -68,6 +68,54 @@ def load_or_create_splits(sids, num_splits, qpp_res_dir):
         json.dump(splits, f)
     return splits
 
+def load_or_create_smart_subsamples(qids, splits, qpp_res_dir,rewrites_labels, subsample_size=50, max_turn=10,zero_prec=.1,one_prec=.1):
+    subsamples_file_name = "{}/subsamples_smart_{}_{}_{}.json".format(qpp_res_dir, len(splits), subsample_size, max_turn)
+    if os.path.isfile(subsamples_file_name):
+        with open(subsamples_file_name) as f:
+            subsamples = json.load(f)
+        return subsamples
+    subsamples = {}
+    split_token = "#" if len(qids[0].split("#")) > 1 else "_"
+    tids = list(set([qid.split(split_token)[1] for qid in qids]))
+    tids = [int(x) for x in tids]
+    tids.sort()
+    print("tids vals:", tids)
+    t_qids = {tid: [] for tid in tids}
+    for qid in qids:
+        _, tid = qid.split(split_token)
+        tid = int(tid)
+        t_qids[tid].append(qid)
+    tids = tids[:max_turn]
+    num_zeroes=int(subsample_size*zero_prec)
+    for rewrite_method,labels in rewrites_labels.items():
+        method_susamples=[]
+        for split in splits:
+            fold1, fold2 = split
+            fold1_subsamples, fold2_subsamples = [], []
+            for tid in tids:
+                qids_fold1 = [qid for qid in t_qids[tid] if qid.split(split_token)[0] in fold1]
+                print("len qids fold 1", tid, len(qids_fold1))
+                zero_res_qids_fold1=[qid for qid in qids_fold1 if labels[qid]==0]
+                non_zero_res_qids_fold1=[qid for qid in qids_fold1 if labels[qid]>0]
+                print("num of non zero qids fold1:",tid,len(non_zero_res_qids_fold1))
+                fold1_subsamples += random.sample(zero_res_qids_fold1, num_zeroes) if len(
+                    zero_res_qids_fold1) >= num_zeroes else zero_res_qids_fold1
+                fold1_subsamples += random.sample(non_zero_res_qids_fold1, subsample_size-num_zeroes) if len(
+                    non_zero_res_qids_fold1) >= subsample_size-num_zeroes else non_zero_res_qids_fold1
+
+                qids_fold2 = [qid for qid in t_qids[tid] if qid.split(split_token)[0] in fold2]
+                zero_res_qids_fold2=[qid for qid in qids_fold2 if labels[qid]==0]
+                non_zero_res_qids_fold2=[qid for qid in qids_fold2 if labels[qid]>0]
+                fold2_subsamples += random.sample(zero_res_qids_fold2, num_zeroes) if len(
+                    zero_res_qids_fold2) >= num_zeroes else zero_res_qids_fold2
+                fold2_subsamples += random.sample(non_zero_res_qids_fold2, subsample_size-num_zeroes) if len(
+                    non_zero_res_qids_fold2) >= subsample_size-num_zeroes else non_zero_res_qids_fold2
+
+            method_susamples.append([fold1_subsamples, fold2_subsamples])
+        subsamples[rewrite_method]=method_susamples
+    with open(subsamples_file_name, 'w') as f:
+        json.dump(subsamples, f)
+    return subsamples
 
 def load_or_create_subsamples(qids, splits, qpp_res_dir, subsample_size=50, max_turn=10):
     subsamples_file_name = "{}/subsamples_{}_{}_{}.json".format(qpp_res_dir, len(splits), subsample_size, max_turn)
@@ -142,6 +190,7 @@ if __name__ == "__main__":
     parser.add_argument("--qpp_eval_metric", default="turn_kendall")
     parser.add_argument("--max_turn", type=int, default=10)
     parser.add_argument("--subsamples_size", type=int, default=50)
+    parser.add_argument("--smart_subsamples",action='store_true',default=False)
     parser.add_argument("--per_turn_tunning", action='store_true', default=False)
     parser.add_argument("--oracle_tunning",action='store_true',default=False)
     args = parser.parse_args()
@@ -159,6 +208,7 @@ if __name__ == "__main__":
     subsamples_size = args.subsamples_size
     per_turn_tunning = args.per_turn_tunning
     oracle_tunning=args.oracle_tunning
+    smart_subsamples=args.smart_subsamples
     EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
     RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
     runs, rewrites, rewrites_eval, turns_text = load_data(REWRITE_METHODS, EVAL_PATH, RUNS_PATH, query_rewrite_field,
@@ -169,7 +219,10 @@ if __name__ == "__main__":
     qids = rewrites_eval[REWRITE_METHODS[0]].qid.unique()
     qpp_res_dir = "{}/{}/{}/".format(qpp_res_dir_base, res_dir, col)
     splits = load_or_create_splits(sids, num_splits, qpp_res_dir)
-    splits_subsamples = load_or_create_subsamples(qids, splits, qpp_res_dir, subsamples_size, max_turn)
+    if smart_subsamples:
+        splits_subsamples = load_or_create_smart_subsamples(qids, splits, qpp_res_dir,label_dict, subsamples_size, max_turn)
+    else:
+        splits_subsamples = load_or_create_subsamples(qids, splits, qpp_res_dir, subsamples_size, max_turn)
     qpp_factory = QPPFeatureFactory(col, qpp_res_dir + "/cache/" if load_cached_feature else None)
     corr_res = {}
     per_turn_corr_res = {}
@@ -182,7 +235,7 @@ if __name__ == "__main__":
     if not os.path.exists(scatter_base_dir):
         os.mkdir(scatter_base_dir)
     '''
-    ctx = create_ctx(runs, rewrites, turns_text, col)
+    ctx = create_ctx(runs, rewrites, turns_text, col,REWRITE_METHODS)
     for feature in selected_features:
         corr_res[feature] = {}
         corr_raw_res = {}
@@ -228,7 +281,8 @@ if __name__ == "__main__":
             if not os.path.exists(scatter_dir):
                 os.mkdir(scatter_dir)
             '''
-            for i, split in enumerate(splits_subsamples):
+            method_split=splits_subsamples[method_name] if smart_subsamples else splits_subsamples
+            for i, split in enumerate(method_split):
                 split_start_time = time.time()
                 fold1_labels = {qid: v for qid, v in labels.items() if qid in split[0]}
                 fold2_labels = {qid: v for qid, v in labels.items() if qid in split[1]}
@@ -311,6 +365,7 @@ if __name__ == "__main__":
         # write corr results for stat sgni.
         run_name =feature+"_pt" if per_turn_tunning else feature
         run_name = run_name + "_oracle" if oracle_tunning else run_name
+        run_name=run_name + "_ssb" if smart_subsamples else run_name
 
         feature_r_vals_path = "{}/exp_{}_{}_{}_{}.json".format(qpp_res_dir, qpp_eval_metric, run_name, metric,
                                                                num_splits)

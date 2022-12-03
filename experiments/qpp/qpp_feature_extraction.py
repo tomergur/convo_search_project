@@ -80,6 +80,9 @@ class QPPFeatureFactory:
         qpp_dict["many_turns_bert_qpp_tokens"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
                                                                              "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank_tokens/{}_{}" +
                                                                              hp_config['suffix'], col,output_mode="online")
+        qpp_dict["many_turns_bert_qpp_tokens_3"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
+                                                                             "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank_tokens/{}_{}" +
+                                                                             hp_config['suffix'], col,output_mode="online")
         qpp_dict["many_turns_bert_qpp_tokens_init"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
                                                                              "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank_tokens/{}_{}" +
                                                                              hp_config['suffix'], col,output_mode="online")
@@ -101,6 +104,9 @@ class QPPFeatureFactory:
                                                                              "/v/tomergur/convo/qpp_models/many_docs_bert_qpp_rerank/{}_{}_" +
                                                                              hp_config['suffix'] + "/group_model/", col,infer_mode="query", group_agg_func=hp_config['group_agg_func'])
         qpp_dict["bert_qpp"] = lambda hp_config: BertQPP(self.searcher,
+                                                         "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}" +
+                                                         hp_config['suffix'], col)
+        qpp_dict["bert_qpp_3"] = lambda hp_config: BertQPP(self.searcher,
                                                          "/v/tomergur/convo/qpp_models/bert_qpp_rerank/{}_{}" +
                                                          hp_config['suffix'], col)
         qpp_dict["st_bert_qpp"] = lambda hp_config: SingleTurnBertQPP(self.searcher,

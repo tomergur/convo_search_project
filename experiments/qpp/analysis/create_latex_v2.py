@@ -31,7 +31,7 @@ DEFAULT_SELECTED_FEATURES=["WIG_norm","WIG_norm_pt","NQC_norm","NQC_norm_pt","cl
 
 DEFAULT_SELECTED_FEATURES=["bert_qpp_cls","ref_hist_bert_qpp_cls","many_turns_bert_qpp_cls"]
 BASELINE_METHODS={"bert_qpp_cls":"*"}
-DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_tokens","seq_qpp"]
+DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_tokens","seq_qpp","ref_rewrites_bert_qpp"]
 BASELINE_METHODS={"bert_qpp":"*"}
 REWRITE_METHODS=['t5','all','hqe','quretec']
 DEFAULT_REWRITE_METHODS=['all','quretec']

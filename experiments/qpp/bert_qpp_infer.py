@@ -159,7 +159,7 @@ class BertQPP:
         tf.keras.layers.Activation(tf.nn.softmax)(logits)
         scores = tf.keras.layers.Activation(tf.nn.softmax)(logits) if logits.shape[1] > 1 else logits
         scores = scores.numpy()
-        res={qids[i]: scores[i,-1] for i in range(len(qids)) }
+        res={qids[i]: scores[i,-1].item() for i in range(len(qids)) }
         return res
 
 

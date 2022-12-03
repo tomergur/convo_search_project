@@ -64,12 +64,9 @@ def create_label_dict(rewrites_eval, metric):
             in rewrites_eval.items()}
 
 
-def create_ctx(runs, rewrites, turns_text, col="cast19"):
+def create_ctx(runs, rewrites, turns_text, col="cast19",rewrite_ref_methods=["t5", "all", "hqe", "quretec"]):
     ctx = {}
-    REWRITE_REF_LIST = ["t5", "all", "hqe", "quretec"]
-    #REWRITE_REF_LIST=["t5"]
-    REWRITE_REF_LIST = ["all","quretec"]
-    REWRITE_REF_LIST = ["all"]
+    REWRITE_REF_LIST = rewrite_ref_methods
     res_lists = {}
     for method_name, method_runs in runs.items():
         res_lists[method_name] = {qid: list(zip(q_run.docid.tolist(), q_run.score.tolist())) for qid, q_run in
