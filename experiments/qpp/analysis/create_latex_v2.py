@@ -31,8 +31,9 @@ DEFAULT_SELECTED_FEATURES=["WIG_norm","WIG_norm_pt","NQC_norm","NQC_norm_pt","cl
 
 DEFAULT_SELECTED_FEATURES=["bert_qpp_cls","ref_hist_bert_qpp_cls","many_turns_bert_qpp_cls"]
 BASELINE_METHODS={"bert_qpp_cls":"*"}
-DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_tokens","seq_qpp","ref_rewrites_bert_qpp","rewrites_bert_qpp"]
-DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp_1kturns","ref_hist_bert_qpp_2kturns","ref_hist_bert_qpp_3kturns","ref_hist_bert_qpp","many_turns_bert_qpp_tokens"]
+#,"ref_rewrites_bert_qpp","rewrites_bert_qpp"
+DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_tokens"]
+#DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp_1kturns","ref_hist_bert_qpp_2kturns","ref_hist_bert_qpp_3kturns","ref_hist_bert_qpp","many_turns_bert_qpp_tokens"]
 BASELINE_METHODS={"bert_qpp":"*"}
 REWRITE_METHODS=['t5','all','hqe','quretec']
 DEFAULT_REWRITE_METHODS=['all','quretec']
@@ -160,14 +161,18 @@ def get_table_columns_names(columns, sub_columns):
     res += '\\\\ \\hline'
     return res
 
-def result_to_latex(res_dict,output_path,t_test_res,table_type):
+def result_to_latex(res_dict,output_path,t_test_res,table_type,table_headline):
     with open(output_path, 'w') as output:
-        print('\\begin{center}', file=output)
+        #print('\\begin{center}', file=output)
         column_names=list(res_dict.keys())
         row_names=list(res_dict[column_names[0]].keys())
         sub_columns_names=list(res_dict[column_names[0]][row_names[0]].keys())
         table_header = calc_table_header(column_names, sub_columns_names,table_type)
         print('\\begin{tabular}{' + table_header + '} \\hline', file=output)
+        if table_headline is not None:
+            num_col=1+len(sub_columns_names)*len(column_names)
+            headline_str="\multicolumn{"+str(num_col)+"}{|c|}{"+table_headline+"} \\\\ \\hline"
+            print(headline_str, file=output)
         table_collections_row = get_column_row(column_names, sub_columns_names,table_type)
         print(table_collections_row, file=output)
         if len(sub_columns_names)>1:
@@ -176,7 +181,7 @@ def result_to_latex(res_dict,output_path,t_test_res,table_type):
         for row_name in row_names:
             print(get_method_row(row_name, res_dict, column_names, sub_columns_names,table_type,t_test_res), file=output)
         print('\\end{tabular}', file=output)
-        print('\\end{center}', file=output)
+        #print('\\end{center}', file=output)
 
 def t_test_paired(new_method, baseline, alpha=.05):
     t, p_val = stats.ttest_rel(new_method, baseline, alternative="greater")
@@ -220,6 +225,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_file_name",default="latex_res.txt")
     parser.add_argument("--rewrite_methods",nargs="+",default=DEFAULT_REWRITE_METHODS)
     parser.add_argument("--subsamples_size",type=int,default=50)
+    parser.add_argument("--add_col_header",action='store_true',default=False)
     args=parser.parse_args()
     metric=args.metric
     col=args.col
@@ -231,6 +237,8 @@ if __name__ == "__main__":
     output_file_name=args.output_file_name
     subsamples_size=args.subsamples_size
     REWRITE_METHODS=args.rewrite_methods
+    add_col_header=args.add_col_header
+
     EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
     RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
 
@@ -277,7 +285,9 @@ if __name__ == "__main__":
     output_file="{}/{}".format(out_dir,output_file_name)
     t_test_res=get_ttest_vals(splits_res)
     print("t_test_res",t_test_res)
-    result_to_latex(latex_res,output_file,t_test_res,table_type)
+    col_names={'or_quac':'OR QUAC','topiocqa':'TopioCQA'}
+    table_main_row=col_names.get(col) if add_col_header else None
+    result_to_latex(latex_res,output_file,t_test_res,table_type,table_main_row)
 
 
 

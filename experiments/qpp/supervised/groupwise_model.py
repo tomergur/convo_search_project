@@ -91,7 +91,7 @@ class GroupwiseBert(tf.keras.Model):
         text_emb=tf.reshape(bert_res.pooler_output,[num_seq,seq_length,-1])
         #tf.print(tf.shape(text_emb))
         if self.output_mode and "online" in self.output_mode:
-            if self.max_seq_length is not None:
+            if self.max_seq_length is not None and seq_length>self.max_seq_length:
                 return self.limit_seq_length_online_output(text_emb, training)
             return self.online_output(text_emb, training)
         group_inputs = {'inputs_embeds': text_emb}
