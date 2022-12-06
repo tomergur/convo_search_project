@@ -62,11 +62,13 @@ REWRITE_METHODS = ['t5', 'all', 'hqe', 'quretec']
 def create_dataset(data_to_tokenize,top_docs,max_rows_per_file):
     j = 0
     file_idx = 1
-    for qid, (queries,passages, labels) in data_to_tokenize.items():
+    for qid, (queries,passages,labels) in data_to_tokenize.items():
         #print(qid)
         #print(queries)
         #print(passages)
         #print(labels)
+        assert(len(labels)==4)
+        assert(len(queries)==4)
         if j % 100 == 0:
             print("num serialized:", j)
         if j % max_rows_per_file == 0:
@@ -127,7 +129,7 @@ if __name__ == "__main__":
         queries=[]
         passages=[]
         labels=[]
-        contains_query=[qid in ctx[rewrite_method] for rewrite_method in REWRITE_METHODS ]
+        contains_query=[qid in ctx[rewrite_method] for rewrite_method in REWRITE_METHODS]
         if False in contains_query:
             print("skipping query",qid)
             continue

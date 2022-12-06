@@ -31,7 +31,8 @@ DEFAULT_SELECTED_FEATURES=["WIG_norm","WIG_norm_pt","NQC_norm","NQC_norm_pt","cl
 
 DEFAULT_SELECTED_FEATURES=["bert_qpp_cls","ref_hist_bert_qpp_cls","many_turns_bert_qpp_cls"]
 BASELINE_METHODS={"bert_qpp_cls":"*"}
-DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_tokens","seq_qpp","ref_rewrites_bert_qpp"]
+DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_tokens","seq_qpp","ref_rewrites_bert_qpp","rewrites_bert_qpp"]
+DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp_1kturns","ref_hist_bert_qpp_2kturns","ref_hist_bert_qpp_3kturns","ref_hist_bert_qpp","many_turns_bert_qpp_tokens"]
 BASELINE_METHODS={"bert_qpp":"*"}
 REWRITE_METHODS=['t5','all','hqe','quretec']
 DEFAULT_REWRITE_METHODS=['all','quretec']
@@ -90,8 +91,11 @@ METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC",
                      "many_turns_bert_qpp_online": "dialogue groupwise QPP - online inference",
                      "many_turns_bert_qpp_hist": "dialogue groupwise QPP+raw history",
                      "many_turns_bert_qpp_prev": "dialogue groupwise QPP+previous queries",
+                     "seq_qpp":"dialogue LSTM QPP",
+                     "rewrites_bert_qpp": "rewrites groupwise qpp",
+                     "ref_rewrites_bert_qpp":"Bert QPP -rewrites REF RBO",
                      "ref_hist_bert_qpp_cls":"Bert QPP -REF RBO","many_turns_bert_qpp_cls":"dialogue groupwise QPP",
-                     "ref_hist_bert_qpp":"Bert QPP -REF RBO","ref_hist_bert_qpp_pt":"Bert QPP - REF RBO, HP per turn "}
+                     "ref_hist_bert_qpp":"Bert QPP - history REF RBO","ref_hist_bert_qpp_pt":"Bert QPP - REF RBO, HP per turn "}
 
 def is_oracle(method_name):
     return ('manual' in method_name) or ('oracle' in method_name)
@@ -215,6 +219,7 @@ if __name__ == "__main__":
     parser.add_argument("--table_type",default="normal")
     parser.add_argument("--output_file_name",default="latex_res.txt")
     parser.add_argument("--rewrite_methods",nargs="+",default=DEFAULT_REWRITE_METHODS)
+    parser.add_argument("--subsamples_size",type=int,default=50)
     args=parser.parse_args()
     metric=args.metric
     col=args.col
@@ -224,6 +229,7 @@ if __name__ == "__main__":
     qpp_res_dir_base = args.qpp_res_dir_base
     table_type = args.table_type
     output_file_name=args.output_file_name
+    subsamples_size=args.subsamples_size
     REWRITE_METHODS=args.rewrite_methods
     EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
     RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
@@ -240,8 +246,8 @@ if __name__ == "__main__":
         feature_eval = {}
         print("calc feature:", feature)
         start_time = time.time()
-        exp_path = "{}/{}/{}/exp_per_turn_kendall_{}_{}_30.json".format(qpp_res_dir_base, res_dir, col,
-                                                                       feature, metric)
+        exp_path = "{}/{}/{}/exp_per_turn_kendall_{}_{}_30_{}.json".format(qpp_res_dir_base, res_dir, col,
+                                                                       feature, metric,subsamples_size)
         with open(exp_path) as f:
             exp_turns = json.load(f)
         features_exp[feature]=exp_turns

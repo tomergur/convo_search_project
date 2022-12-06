@@ -93,7 +93,6 @@ class SingleTurnBertQPP:
         # print("query res",res,type(res.item()))
         return float(res.item())
 
-
     def calc_qpp_feature(self, query, **ctx):
         if self.i % 100 == 0:
             print("bert qpp:", self.i)
@@ -103,6 +102,56 @@ class SingleTurnBertQPP:
         passage = get_passage(self.searcher, top_doc_id)
         query = modify_query(query, ctx, self.append_history, self.append_prev_turns)
         return self.calc_score(query, passage)
+
+class RewritesBertQPP:
+    REWRITE_METHODS = ['t5', 'all', 'hqe', 'quretec']
+    def __init__(self, searcher, model_path, append_history=False,append_prev_turns=False):
+        self.searcher = searcher
+        K.clear_session()
+        self.model=GroupwiseBert.from_pretrained(model_path,output_mode="tokens")
+        self.tokenizer=AutoTokenizer.from_pretrained(model_path, use_fast=True)
+        self.append_history = append_history
+        self.append_prev_turns = append_prev_turns
+        self.i = 0
+        self.cache={k:{} for k in RewritesBertQPP.REWRITE_METHODS}
+
+    def calc_group_scores(self, queries, passages):
+        trunc_queries = [truncate_query(query, self.tokenizer) for query in queries]
+        ret = self.tokenizer(trunc_queries, passages, max_length=512, truncation=True, return_token_type_ids=True,
+                             return_tensors='tf', padding=True)
+        ret={k:tf.expand_dims(v,0) for k,v in ret.items()}
+        logits = self.model(ret, training=False)
+        if len(logits.shape) == 0:
+            return [logits.numpy().item()]
+        scores = tf.keras.layers.Activation(tf.nn.softmax)(logits) if logits.shape[1] > 1 else logits
+        scores= tf.squeeze(scores,0) if len(tf.shape(scores))>2 else scores
+        scores = scores.numpy()
+        return [s.item() for s in scores[:, -1]]
+
+    def calc_qpp_feature(self, query, **ctx):
+        if self.i % 100 == 0:
+            print("bert qpp:", self.i)
+        self.i += 1
+        cur_method = ctx["method"]
+        qid=ctx["qid"]
+        if qid in self.cache[cur_method]:
+            return self.cache[cur_method][qid]
+        res_list = ctx["res_list"]
+        top_doc_id = res_list[0][0]
+        rewrites={cur_method:(query,top_doc_id)}
+        for rewrite,rewrite_ctx in ctx['ref_rewrites']:
+            res_list = rewrite_ctx["res_list"]
+            top_doc_id = res_list[0][0]
+            rewrites[rewrite_ctx['method']]=(rewrite,top_doc_id)
+        queries=[rewrites[rewrite_method][0] for rewrite_method in RewritesBertQPP.REWRITE_METHODS]
+        passages=[get_passage(self.searcher, rewrites[rewrite_method][1]) for rewrite_method in RewritesBertQPP.REWRITE_METHODS]
+        res=self.calc_group_scores(queries,passages)
+        for i,rewrite_method in enumerate(RewritesBertQPP.REWRITE_METHODS):
+            self.cache[rewrite_method][qid]=res[i]
+        return self.cache[cur_method][qid]
+
+
+
 
 class BertQPP:
     def __init__(self, searcher, model_name_or_path_pattern, col, append_history=False, append_prev_turns=False):

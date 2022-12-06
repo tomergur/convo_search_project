@@ -15,7 +15,7 @@ from .qpp_utils import load_data, create_label_dict, create_ctx, calc_topic_corr
 
 REWRITE_METHODS = ['raw', 't5', 'all', 'hqe', 'quretec', 'manual']
 REWRITE_METHODS = ['t5', 'all', 'hqe', 'quretec']
-REWRITE_METHODS = ['all', 'quretec']
+#REWRITE_METHODS = ['all', 'quretec']
 #REWRITE_METHODS = ['all']
 DEFAULT_RES_DIR = "rerank_kld_100"
 DEFAULT_COL = "cast19"
@@ -68,7 +68,7 @@ def load_or_create_splits(sids, num_splits, qpp_res_dir):
         json.dump(splits, f)
     return splits
 
-def load_or_create_smart_subsamples(qids, splits, qpp_res_dir,rewrites_labels, subsample_size=50, max_turn=10,zero_prec=.1,one_prec=.1):
+def load_or_create_smart_subsamples(qids, splits, qpp_res_dir,rewrites_labels, subsample_size=50, max_turn=10,zero_prec=.1):
     subsamples_file_name = "{}/subsamples_smart_{}_{}_{}.json".format(qpp_res_dir, len(splits), subsample_size, max_turn)
     if os.path.isfile(subsamples_file_name):
         with open(subsamples_file_name) as f:
@@ -250,6 +250,8 @@ if __name__ == "__main__":
             os.mkdir(scatter_feature_dir)
         '''
         features_cache = {}
+        extractors = [qpp_factory.create_qpp_extractor(feature, **hp_config) for hp_config in hp_configs] if len(
+            hp_configs) > 0 else [qpp_factory.create_qpp_extractor(feature)]
         for method_name, method_rewrites in rewrites.items():
             start_time = time.time()
             method_runs = runs[method_name]
@@ -260,8 +262,6 @@ if __name__ == "__main__":
 
             # run all scores:
             feature_calc_start_time = time.time()
-            extractors = [qpp_factory.create_qpp_extractor(feature, **hp_config) for hp_config in hp_configs] if len(
-                hp_configs) > 0 else [qpp_factory.create_qpp_extractor(feature)]
             feature_val = [topic_evaluate_extractor(extractor, method_rewrites, labels, method_ctx, True) for extractor
                            in extractors]
             if cache_results:
@@ -367,12 +367,12 @@ if __name__ == "__main__":
         run_name = run_name + "_oracle" if oracle_tunning else run_name
         run_name=run_name + "_ssb" if smart_subsamples else run_name
 
-        feature_r_vals_path = "{}/exp_{}_{}_{}_{}.json".format(qpp_res_dir, qpp_eval_metric, run_name, metric,
-                                                               num_splits)
+        feature_r_vals_path = "{}/exp_{}_{}_{}_{}_{}.json".format(qpp_res_dir, qpp_eval_metric, run_name, metric,
+                                                               num_splits,subsamples_size)
         with open(feature_r_vals_path, 'w') as f:
             json.dump(corr_raw_res, f)
-        per_turn_feature_r_vals_path = "{}/exp_per_turn_kendall_{}_{}_{}.json".format(qpp_res_dir, run_name, metric,
-                                                                                      num_splits)
+        per_turn_feature_r_vals_path = "{}/exp_per_turn_kendall_{}_{}_{}_{}.json".format(qpp_res_dir, run_name, metric,
+                                                                                      num_splits,subsamples_size)
         with open(per_turn_feature_r_vals_path, 'w') as f:
             json.dump(per_turn_corr_raw_res, f)
         if cache_results:
@@ -386,7 +386,7 @@ if __name__ == "__main__":
         cur_row.update(corr_vals)
         r_res.append(cur_row)
         row_df = pd.DataFrame([cur_row])
-        res_path = "{}/{}_{}_{}_{}.csv".format(qpp_res_dir, qpp_eval_metric, run_name, metric, num_splits)
+        res_path = "{}/{}_{}_{}_{}_{}.csv".format(qpp_res_dir, qpp_eval_metric, run_name, metric, num_splits,subsamples_size)
         row_df.to_csv(res_path, index=False)
     r_df = pd.DataFrame(r_res)
     print(r_df)

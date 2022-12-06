@@ -16,6 +16,7 @@ class ModelArguments:
     use_bert_pl: bool = False
     from_pt: bool = False
     group_agg_func: str = None
+    max_seq_length:int =None
     output_mode : str = "tokens"
     use_mse: bool = False
 
@@ -40,7 +41,7 @@ def create_model(model_args):
             group_conf = BertConfig(num_hidden_layers=4, num_labels=num_classes)
             group_model = TFBertForSequenceClassification(
                 group_conf) if "seq" in model_args.output_mode  else TFBertForTokenClassification(group_conf)
-        return GroupwiseBert(model, group_model, model_args.group_agg_func, model_args.output_mode)
+        return GroupwiseBert(model, group_model, model_args.group_agg_func, model_args.output_mode,model_args.max_seq_length)
 
     model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=model_args.from_pt,
                                                                  num_labels=num_classes)
