@@ -382,7 +382,10 @@ if __name__ == "__main__":
 
     r_res = []
     for feature, corr_vals in corr_res.items():
-        cur_row = {"predictor": feature}
+        run_name =feature+"_pt" if per_turn_tunning else feature
+        run_name = run_name + "_oracle" if oracle_tunning else run_name
+        run_name=run_name + "_ssb" if smart_subsamples else run_name
+        cur_row = {"predictor": run_name}
         cur_row.update(corr_vals)
         r_res.append(cur_row)
         row_df = pd.DataFrame([cur_row])

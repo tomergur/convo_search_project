@@ -25,7 +25,7 @@ class GroupwiseBert(tf.keras.Model):
         # self.group_bert.layers[0].embeddings.word_embeddings.trainable=False
 
     @staticmethod
-    def from_pretrained(model_path, group_agg_func=None, output_mode=None):
+    def from_pretrained(model_path, group_agg_func=None, output_mode=None,max_seq_length=None):
 
         # group_model = TFAutoModelForTokenClassification.from_pretrained(group_model_path)
         # "groupwise_bert"
@@ -33,24 +33,28 @@ class GroupwiseBert(tf.keras.Model):
         group_model_path=model_path+"/group_model/"
         text_model = TFAutoModel.from_pretrained(text_model_path)
 
-        with tf.name_scope("groupwise_bert") as scope:
-            group_model = TFAutoModelForSequenceClassification.from_pretrained(
-                group_model_path) if "seq" in output_mode else TFAutoModelForTokenClassification.from_pretrained(
-                group_model_path)
+        with tf.name_scope("tf_bert") as scope:
+                group_model = TFAutoModelForSequenceClassification.from_pretrained(
+                    group_model_path) if "seq" in output_mode else TFAutoModelForTokenClassification.from_pretrained(
+                    group_model_path)
         '''
         group_model = TFAutoModelForSequenceClassification.from_pretrained(
                 group_model_path) if "seq" in output_mode else TFAutoModelForTokenClassification.from_pretrained(
                 group_model_path)
-         '''
-        return GroupwiseBert(text_model, group_model, group_agg_func, output_mode=output_mode)
+        '''
+
+
+
+        return GroupwiseBert(text_model, group_model, group_agg_func, output_mode=output_mode,max_seq_length=max_seq_length)
 
     def limit_seq_length_online_output(self,text_emb,training):
         #assuming a single sequence
         seq_length = tf.shape(text_emb)[1]
-        #tf.math.maximum(0,i-self.max_seq_length)
-        short_seq=tf.map_fn(lambda i: tf.pad(text_emb[0,0:i+1,:],paddings=[[0,self.max_seq_length-i],[0,0]]),tf.range(self.max_seq_length),fn_output_signature=tf.float32)
-        sequences=tf.map_fn(lambda i: text_emb[0,i:i+1+self.max_seq_length,:],tf.range(seq_length-self.max_seq_length),fn_output_signature=tf.float32)
-        seq_text_emb=tf.concat([short_seq,sequences],0)
+        short_seq_length=tf.math.minimum(self.max_seq_length,seq_length)
+        seq_text_emb=tf.map_fn(lambda i: tf.pad(text_emb[0,0:i+1,:],paddings=[[0,self.max_seq_length-i],[0,0]]),tf.range(short_seq_length),fn_output_signature=tf.float32)
+        if seq_length>self.max_seq_length:
+            long_sequences=tf.map_fn(lambda i: text_emb[0,i:i+1+self.max_seq_length,:],tf.range(seq_length-self.max_seq_length),fn_output_signature=tf.float32)
+            seq_text_emb=tf.concat([seq_text_emb,long_sequences],0)
         #tf.print("seq text emb",tf.shape(seq_text_emb))
         att_mask = tf.ones((seq_length, self.max_seq_length+1))
         att_mask = tf.linalg.band_part(att_mask, -1, -0)
@@ -68,10 +72,19 @@ class GroupwiseBert(tf.keras.Model):
         rep_text_emb = tf.repeat(text_emb, repeats=[seq_length], axis=0)
         att_mask = tf.ones((seq_length, seq_length))
         att_mask = tf.linalg.band_part(att_mask, -1, -0)
+        if self.output_mode == "online_seq":
+            embedding_matrix = self.text_bert.bert.embeddings.weight
+            #TODO: use a constant for the [CLS] token
+            cls_embedding=tf.gather(params=embedding_matrix, indices=[101])
+            cls_embedding_tiled = tf.tile(cls_embedding, multiples=[seq_length, 1])  # [B, H]
+            rep_text_emb = tf.concat((tf.expand_dims(cls_embedding_tiled, axis=1), rep_text_emb), axis=1)
+            att_mask=tf.concat((tf.ones((seq_length,1)), att_mask), axis=1)
+            group_inputs = {'inputs_embeds': rep_text_emb, 'attention_mask': att_mask}
+            res = self.group_bert(group_inputs, training=training)
+            return res.logits
+
         group_inputs = {'inputs_embeds': rep_text_emb, 'attention_mask': att_mask}
         res = self.group_bert(group_inputs, training=training)
-        if self.output_mode == "online_seq":
-            return res.logits
         token_res=tf.gather(res.logits, indices=tf.range(seq_length), axis=1, batch_dims=1)
         return token_res
 
@@ -91,7 +104,8 @@ class GroupwiseBert(tf.keras.Model):
         text_emb=tf.reshape(bert_res.pooler_output,[num_seq,seq_length,-1])
         #tf.print(tf.shape(text_emb))
         if self.output_mode and "online" in self.output_mode:
-            if self.max_seq_length is not None and seq_length>self.max_seq_length:
+            #and seq_length>self.max_seq_length
+            if self.max_seq_length is not None:
                 return self.limit_seq_length_online_output(text_emb, training)
             return self.online_output(text_emb, training)
         group_inputs = {'inputs_embeds': text_emb}

@@ -6,6 +6,7 @@ from .supervised.groupwise_model import GroupwiseBert
 from .supervised.bert_pl import BertPL
 from .supervised.seq_qpp_model import SeqQPP
 
+
 def truncate_query(query, tokenizer, max_length=128):
     q_tokens = tokenizer(query)
     q_len = len(q_tokens['input_ids'])
@@ -42,7 +43,10 @@ def modify_query(query, ctx, append_history, append_prev_turns):
         return " [SEP] ".join(prev_raw_turn + [query])
     return query
 
+
 import random
+
+
 class SingleTurnBertQPP:
     def __init__(self, searcher, model_name_or_path_pattern, col, append_history=False, append_prev_turns=False):
         self.searcher = searcher
@@ -55,24 +59,24 @@ class SingleTurnBertQPP:
 
     def calc_qpp_features(self, queries, ctx):
         qids = list(queries.keys())
-        turn_qids={}
+        turn_qids = {}
         for qid in qids:
-            tid=ctx[qid]['tid']
-            cur_turn=turn_qids.get(tid,[])
+            tid = ctx[qid]['tid']
+            cur_turn = turn_qids.get(tid, [])
             cur_turn.append(qid)
-            turn_qids[tid]=cur_turn
+            turn_qids[tid] = cur_turn
         cur_method = ctx[qids[0]]["method"]
-        res={qid:random.random() for qid in qids}
-        col_add=1 if self.col=="or_quac" else 0
-        for tid,t_qids in turn_qids.items():
-            if tid+col_add not in [1,2,3,5,7,9]:
+        res = {qid: random.random() for qid in qids}
+        col_add = 1 if self.col == "or_quac" else 0
+        for tid, t_qids in turn_qids.items():
+            if tid + col_add not in [1, 2, 3, 5, 7, 9]:
                 continue
-            print("run turn",tid)
-            model_path = self.model_name_or_path_pattern.format(self.col, cur_method,tid+col_add)
+            print("run turn", tid)
+            model_path = self.model_name_or_path_pattern.format(self.col, cur_method, tid + col_add)
             self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
             self.model = TFAutoModelForSequenceClassification.from_pretrained(model_path)
             for qid in t_qids:
-                res[qid]=self.calc_qpp_feature(queries[qid],**ctx[qid])
+                res[qid] = self.calc_qpp_feature(queries[qid], **ctx[qid])
         return res
 
     def calc_score(self, query, passage):
@@ -103,28 +107,30 @@ class SingleTurnBertQPP:
         query = modify_query(query, ctx, self.append_history, self.append_prev_turns)
         return self.calc_score(query, passage)
 
+
 class RewritesBertQPP:
     REWRITE_METHODS = ['t5', 'all', 'hqe', 'quretec']
-    def __init__(self, searcher, model_path, append_history=False,append_prev_turns=False):
+
+    def __init__(self, searcher, model_path, append_history=False, append_prev_turns=False):
         self.searcher = searcher
         K.clear_session()
-        self.model=GroupwiseBert.from_pretrained(model_path,output_mode="tokens")
-        self.tokenizer=AutoTokenizer.from_pretrained(model_path, use_fast=True)
+        self.model = GroupwiseBert.from_pretrained(model_path, output_mode="tokens")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
         self.append_history = append_history
         self.append_prev_turns = append_prev_turns
         self.i = 0
-        self.cache={k:{} for k in RewritesBertQPP.REWRITE_METHODS}
+        self.cache = {k: {} for k in RewritesBertQPP.REWRITE_METHODS}
 
     def calc_group_scores(self, queries, passages):
         trunc_queries = [truncate_query(query, self.tokenizer) for query in queries]
         ret = self.tokenizer(trunc_queries, passages, max_length=512, truncation=True, return_token_type_ids=True,
                              return_tensors='tf', padding=True)
-        ret={k:tf.expand_dims(v,0) for k,v in ret.items()}
+        ret = {k: tf.expand_dims(v, 0) for k, v in ret.items()}
         logits = self.model(ret, training=False)
         if len(logits.shape) == 0:
             return [logits.numpy().item()]
         scores = tf.keras.layers.Activation(tf.nn.softmax)(logits) if logits.shape[1] > 1 else logits
-        scores= tf.squeeze(scores,0) if len(tf.shape(scores))>2 else scores
+        scores = tf.squeeze(scores, 0) if len(tf.shape(scores)) > 2 else scores
         scores = scores.numpy()
         return [s.item() for s in scores[:, -1]]
 
@@ -133,24 +139,23 @@ class RewritesBertQPP:
             print("bert qpp:", self.i)
         self.i += 1
         cur_method = ctx["method"]
-        qid=ctx["qid"]
+        qid = ctx["qid"]
         if qid in self.cache[cur_method]:
             return self.cache[cur_method][qid]
         res_list = ctx["res_list"]
         top_doc_id = res_list[0][0]
-        rewrites={cur_method:(query,top_doc_id)}
-        for rewrite,rewrite_ctx in ctx['ref_rewrites']:
+        rewrites = {cur_method: (query, top_doc_id)}
+        for rewrite, rewrite_ctx in ctx['ref_rewrites']:
             res_list = rewrite_ctx["res_list"]
             top_doc_id = res_list[0][0]
-            rewrites[rewrite_ctx['method']]=(rewrite,top_doc_id)
-        queries=[rewrites[rewrite_method][0] for rewrite_method in RewritesBertQPP.REWRITE_METHODS]
-        passages=[get_passage(self.searcher, rewrites[rewrite_method][1]) for rewrite_method in RewritesBertQPP.REWRITE_METHODS]
-        res=self.calc_group_scores(queries,passages)
-        for i,rewrite_method in enumerate(RewritesBertQPP.REWRITE_METHODS):
-            self.cache[rewrite_method][qid]=res[i]
+            rewrites[rewrite_ctx['method']] = (rewrite, top_doc_id)
+        queries = [rewrites[rewrite_method][0] for rewrite_method in RewritesBertQPP.REWRITE_METHODS]
+        passages = [get_passage(self.searcher, rewrites[rewrite_method][1]) for rewrite_method in
+                    RewritesBertQPP.REWRITE_METHODS]
+        res = self.calc_group_scores(queries, passages)
+        for i, rewrite_method in enumerate(RewritesBertQPP.REWRITE_METHODS):
+            self.cache[rewrite_method][qid] = res[i]
         return self.cache[cur_method][qid]
-
-
 
 
 class BertQPP:
@@ -163,7 +168,7 @@ class BertQPP:
         self.i = 0
         self.append_prev_turns = append_prev_turns
         assert (not (append_history and append_prev_turns))
-        self.batch_size=8
+        self.batch_size = 8
 
     def calc_qpp_feature(self, query, **ctx):
         if self.i % 100 == 0:
@@ -182,35 +187,35 @@ class BertQPP:
         return self.calc_score(query, passage)
 
     def calc_qpp_features(self, queries, ctx):
-        qids=list(queries.keys())
+        qids = list(queries.keys())
         cur_method = ctx[qids[0]]["method"]
         if cur_method != self.method:
             model_path = self.model_name_or_path_pattern.format(self.col, cur_method)
             self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
             self.model = TFAutoModelForSequenceClassification.from_pretrained(model_path)
             self.method = cur_method
-        queries_text=[]
-        passages=[]
+        queries_text = []
+        passages = []
         for qid in qids:
-            query=queries[qid]
-            q_ctx=ctx[qid]
+            query = queries[qid]
+            q_ctx = ctx[qid]
             res_list = q_ctx["res_list"]
             top_doc_id = res_list[0][0]
             passage = get_passage(self.searcher, top_doc_id)
             query = modify_query(query, q_ctx, self.append_history, self.append_prev_turns)
             queries_text.append(query)
             passages.append(passage)
-        ret = self.tokenizer(queries_text,passages, max_length=512, truncation=True, padding="max_length", return_token_type_ids=True, return_tensors='tf')
+        ret = self.tokenizer(queries_text, passages, max_length=512, truncation=True, padding="max_length",
+                             return_token_type_ids=True, return_tensors='tf')
         pairs_ds = tf.data.Dataset.from_tensor_slices(
-                {"input_ids": ret['input_ids'], "attention_mask": ret['attention_mask'],
-                 "token_type_ids": ret['token_type_ids']})
+            {"input_ids": ret['input_ids'], "attention_mask": ret['attention_mask'],
+             "token_type_ids": ret['token_type_ids']})
         logits = self.model.predict(pairs_ds.batch(self.batch_size), batch_size=self.batch_size, verbose=1).logits
         tf.keras.layers.Activation(tf.nn.softmax)(logits)
         scores = tf.keras.layers.Activation(tf.nn.softmax)(logits) if logits.shape[1] > 1 else logits
         scores = scores.numpy()
-        res={qids[i]: scores[i,-1].item() for i in range(len(qids)) }
+        res = {qids[i]: scores[i, -1].item() for i in range(len(qids))}
         return res
-
 
     def calc_score(self, query, passage):
         trunc_query = truncate_query(query, self.tokenizer)
@@ -234,13 +239,14 @@ class BertQPP:
 class BertPLQPP:
     # TODO modify infer parameter
     TOP_DOCS = 10
-    def __init__(self,searcher,model_path_pattern,col,chunk_size):
-        self.searcher=searcher
-        self.model_path_pattern=model_path_pattern
-        self.col= col
-        self.i=0
-        self.chunk_size=chunk_size
-        self.method=None
+
+    def __init__(self, searcher, model_path_pattern, col, chunk_size):
+        self.searcher = searcher
+        self.model_path_pattern = model_path_pattern
+        self.col = col
+        self.i = 0
+        self.chunk_size = chunk_size
+        self.method = None
 
     def calc_qpp_feature(self, query, **ctx):
         if self.i % 100 == 0:
@@ -250,25 +256,24 @@ class BertPLQPP:
         if cur_method != self.method:
             model_path = self.model_path_pattern.format(self.col, cur_method)
             self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
-            self.model = BertPL.from_pretrained(model_path,self.chunk_size)
+            self.model = BertPL.from_pretrained(model_path, self.chunk_size)
             self.method = cur_method
         passages = [get_passage(self.searcher, ctx['res_list'][i][0]) for i in range(BertPLQPP.TOP_DOCS)]
-        query = [modify_query(query, ctx, False,False)]*len(passages)
+        query = [modify_query(query, ctx, False, False)] * len(passages)
         return self.calc_query_score(query, passages)
 
     def calc_query_score(self, queries, passages):
         trunc_queries = [truncate_query(query, self.tokenizer) for query in queries]
         ret = self.tokenizer(trunc_queries, passages, max_length=512, truncation=True, return_token_type_ids=True,
                              return_tensors='tf', padding=True)
-        ret={k:tf.expand_dims(v,0) for k,v in ret.items()}
+        ret = {k: tf.expand_dims(v, 0) for k, v in ret.items()}
         logits = self.model(ret, training=False)
         scores = tf.keras.layers.Activation(tf.nn.softmax)(logits)
-        print("scores",scores.numpy())
-        num_rel=tf.math.argmax(scores,axis=-1).numpy()
-        print("num rel",num_rel)
-        return sum([s.item()/i for i,s in enumerate(num_rel,start=1)])
+        print("scores", scores.numpy())
+        num_rel = tf.math.argmax(scores, axis=-1).numpy()
+        print("num rel", num_rel)
+        return sum([s.item() / i for i, s in enumerate(num_rel, start=1)])
         return [s.item() for s in scores[:, -1]]
-
 
 
 class GroupwiseBertQPP:
@@ -276,7 +281,8 @@ class GroupwiseBertQPP:
     TOP_DOCS = 10
 
     def __init__(self, searcher, model_path_pattern, col, append_history=False,
-                 append_prev_turns=False, infer_mode="dialogue", group_agg_func=None, output_mode=None,seqQPP=False):
+                 append_prev_turns=False, infer_mode="dialogue", group_agg_func=None, output_mode=None,
+                 max_seq_length=None, seqQPP=False):
         self.searcher = searcher
         self.model_path_pattern = model_path_pattern
         self.col = col
@@ -288,19 +294,20 @@ class GroupwiseBertQPP:
         self.infer_mode = infer_mode
         self.group_agg_func = group_agg_func
         self.output_mode = output_mode
+        self.max_seq_length = max_seq_length
         assert (not (append_history and append_prev_turns))
-        self.seqQPP=seqQPP
+        self.seqQPP = seqQPP
 
     def calc_group_scores(self, queries, passages):
         trunc_queries = [truncate_query(query, self.tokenizer) for query in queries]
         ret = self.tokenizer(trunc_queries, passages, max_length=512, truncation=True, return_token_type_ids=True,
                              return_tensors='tf', padding=True)
-        ret={k:tf.expand_dims(v,0) for k,v in ret.items()}
+        ret = {k: tf.expand_dims(v, 0) for k, v in ret.items()}
         logits = self.model(ret, training=False)
         if len(logits.shape) == 0:
             return [logits.numpy().item()]
         scores = tf.keras.layers.Activation(tf.nn.softmax)(logits) if logits.shape[1] > 1 else logits
-        scores= tf.squeeze(scores,0) if len(tf.shape(scores))>2 else scores
+        scores = tf.squeeze(scores, 0) if len(tf.shape(scores)) > 2 else scores
         scores = scores.numpy()
         return [s.item() for s in scores[:, -1]]
 
@@ -325,14 +332,16 @@ class GroupwiseBertQPP:
         if cur_method != self.method:
             model_path = self.model_path_pattern.format(self.col, cur_method)
             K.clear_session()
-            #self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
-            #TODO: change tokenizer path
+            # self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
+            # TODO: change tokenizer path
             self.tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
             if self.seqQPP:
                 self.model = SeqQPP.from_pretrained(model_path)
             else:
                 self.model = GroupwiseBert.from_pretrained(model_path,
-                                                       group_agg_func=self.group_agg_func, output_mode=self.output_mode)
+                                                           group_agg_func=self.group_agg_func,
+                                                           output_mode=self.output_mode,
+                                                           max_seq_length=self.max_seq_length)
             self.method = cur_method
         if self.infer_mode == "dialogue":
             return self.dialogue_infer_mode(queries, ctx)
@@ -348,7 +357,7 @@ class GroupwiseBertQPP:
         res = {}
         for sid, s_qids in sessions.items():
             s_qids.sort()
-            #print(sid,s_qids)
+            # print(sid,s_qids)
             if self.i % 100 == 0:
                 print("group bert qpp:", self.i)
             self.i += 1
