@@ -93,6 +93,8 @@ if __name__ == "__main__":
                   indent=True)
     with open("{}/{}".format(info_expr_dir, "data_args.json"), 'w') as f:
         json.dump(data_args.__dict__, f, indent=True)
+    with open("{}/{}".format(info_expr_dir, "model_args.json"), 'w') as f:
+        json.dump(model_args.__dict__, f, indent=True)
     strategy = training_args.strategy
     with strategy.scope():
         model = create_model(model_args)
