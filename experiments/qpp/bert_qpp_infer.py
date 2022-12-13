@@ -113,8 +113,8 @@ class RewritesBertQPP:
 
     def __init__(self, searcher, model_path, append_history=False, append_prev_turns=False):
         self.searcher = searcher
-        K.clear_session()
-        self.model = GroupwiseBert.from_pretrained(model_path, output_mode="tokens")
+        self.model_path=model_path
+        self.model=None
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
         self.append_history = append_history
         self.append_prev_turns = append_prev_turns
@@ -135,6 +135,10 @@ class RewritesBertQPP:
         return [s.item() for s in scores[:, -1]]
 
     def calc_qpp_feature(self, query, **ctx):
+        #TODO: fix lazy evaluation?????
+        if self.model is None:
+            K.clear_session()
+            self.model = GroupwiseBert.from_pretrained(self.model_path, output_mode="tokens")
         if self.i % 100 == 0:
             print("bert qpp:", self.i)
         self.i += 1

@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import time
+import itertools
 
 import numpy as np
 import pandas as pd
@@ -31,10 +32,12 @@ DEFAULT_SELECTED_FEATURES=["WIG_norm","WIG_norm_pt","NQC_norm","NQC_norm_pt","cl
 
 DEFAULT_SELECTED_FEATURES=["bert_qpp_cls","ref_hist_bert_qpp_cls","many_turns_bert_qpp_cls"]
 BASELINE_METHODS={"bert_qpp_cls":"*"}
-#,"ref_rewrites_bert_qpp","rewrites_bert_qpp"
-DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_tokens"]
-#DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp_1kturns","ref_hist_bert_qpp_2kturns","ref_hist_bert_qpp_3kturns","ref_hist_bert_qpp","many_turns_bert_qpp_tokens"]
-BASELINE_METHODS={"bert_qpp":"*"}
+DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_tokens","ref_rewrites_bert_qpp","rewrites_bert_qpp","ref_rewrites_many_turns_bert_qpp_tokens"]
+DEFAULT_SELECTED_FEATURES=["bert_qpp","bert_qpp_pt","ref_hist_bert_qpp_1kturns","ref_hist_bert_qpp_2kturns","ref_hist_bert_qpp_3kturns","ref_hist_bert_qpp","ref_hist_bert_qpp_skturns","many_turns_bert_qpp_tokens_1kturns","many_turns_bert_qpp_tokens_2kturns","many_turns_bert_qpp_tokens_3kturns","many_turns_bert_qpp_tokens","many_turns_bert_qpp_tokens_skturns"]
+DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","ref_hist_bert_qpp_skturns","many_turns_bert_qpp_tokens","many_turns_bert_qpp_tokens_skturns"]
+DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","ref_hist_bert_qpp_skturns","many_turns_bert_qpp_tokens","many_turns_bert_qpp_tokens_skturns","ref_rewrites_bert_qpp","ref_rewrites_bert_qpp_all_methods","ref_rewrites_bert_qpp_quretec_methods","ref_rewrites_bert_qpp_t5_methods","ref_rewrites_bert_qpp_hqe_methods","rewrites_bert_qpp"]
+BASELINE_METHODS={"bert_qpp":"0","ref_hist_bert_qpp":"1"}
+#,"ref_rewrites_bert_qpp":'2'
 REWRITE_METHODS=['t5','all','hqe','quretec']
 DEFAULT_REWRITE_METHODS=['all','quretec']
 #REWRITE_METHODS=['all']
@@ -51,12 +54,6 @@ QPP_EVAL_METRIC=["sturn_0_kendall","sturn_4_kendall","sturn_8_kendall"]
 
 #QPP_EVAL_METRIC=["sturn_1_kendall","sturn_5_kendall","sturn_9_kendall"]
 #QPP_EVAL_METRIC=["TPA","turn_pearson","turn_kendall"]
-
-
-
-
-
-
 
 #or quac
 QPP_EVAL_METRIC=["sturn_0_kendall","sturn_1_kendall","sturn_2_kendall","sturn_4_kendall","sturn_6_kendall","sturn_8_kendall"]
@@ -89,13 +86,20 @@ METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC",
                      "bert_qpp_prev":"Bert QPP+previous queries",
                      "many_turns_bert_qpp":"dialogue groupwise QPP",
                      "many_turns_bert_qpp_tokens": "dialogue groupwise QPP",
+                     "many_turns_bert_qpp_tokens_skturns": "dialogue groupwise QPP(vary history length)",
                      "many_turns_bert_qpp_online": "dialogue groupwise QPP - online inference",
                      "many_turns_bert_qpp_hist": "dialogue groupwise QPP+raw history",
                      "many_turns_bert_qpp_prev": "dialogue groupwise QPP+previous queries",
                      "seq_qpp":"dialogue LSTM QPP",
                      "rewrites_bert_qpp": "rewrites groupwise qpp",
                      "ref_rewrites_bert_qpp":"Bert QPP -rewrites REF RBO",
+                     "ref_rewrites_bert_qpp_all_methods": "Bert QPP -all rewrite REF RBO",
+                     "ref_rewrites_bert_qpp_t5_methods": "Bert QPP -t5 rewrite REF RBO",
+                     "ref_rewrites_bert_qpp_quretec_methods": "Bert QPP -quretec rewrite REF RBO",
+                     "ref_rewrites_bert_qpp_hqe_methods": "Bert QPP -hqe rewrite REF RBO",
                      "ref_hist_bert_qpp_cls":"Bert QPP -REF RBO","many_turns_bert_qpp_cls":"dialogue groupwise QPP",
+                     "ref_hist_bert_qpp": "Bert QPP - history REF RBO",
+                     "ref_hist_bert_qpp_skturns": "Bert QPP - history REF RBO(varying history size)",
                      "ref_hist_bert_qpp":"Bert QPP - history REF RBO","ref_hist_bert_qpp_pt":"Bert QPP - REF RBO, HP per turn "}
 
 def is_oracle(method_name):
@@ -167,12 +171,13 @@ def result_to_latex(res_dict,output_path,t_test_res,table_type,table_headline):
         column_names=list(res_dict.keys())
         row_names=list(res_dict[column_names[0]].keys())
         sub_columns_names=list(res_dict[column_names[0]][row_names[0]].keys())
-        table_header = calc_table_header(column_names, sub_columns_names,table_type)
-        print('\\begin{tabular}{' + table_header + '} \\hline', file=output)
-        if table_headline is not None:
-            num_col=1+len(sub_columns_names)*len(column_names)
-            headline_str="\multicolumn{"+str(num_col)+"}{|c|}{"+table_headline+"} \\\\ \\hline"
-            print(headline_str, file=output)
+        if table_type in ["normal","header"]:
+            table_header = calc_table_header(column_names, sub_columns_names, table_type)
+            print('\\begin{tabular}{' + table_header + '} \\hline', file=output)
+            if table_headline is not None:
+                num_col = 1 + len(sub_columns_names) * len(column_names)
+                headline_str = "\multicolumn{" + str(num_col) + "}{|c|}{" + table_headline + "} \\\\ \\hline"
+                print(headline_str, file=output)
         table_collections_row = get_column_row(column_names, sub_columns_names,table_type)
         print(table_collections_row, file=output)
         if len(sub_columns_names)>1:
@@ -180,7 +185,8 @@ def result_to_latex(res_dict,output_path,t_test_res,table_type,table_headline):
             print(table_col_names_line, file=output)
         for row_name in row_names:
             print(get_method_row(row_name, res_dict, column_names, sub_columns_names,table_type,t_test_res), file=output)
-        print('\\end{tabular}', file=output)
+        if table_type in ["normal","table_end"]:
+            print('\\end{tabular}', file=output)
         #print('\\end{center}', file=output)
 
 def t_test_paired(new_method, baseline, alpha=.05):
@@ -275,16 +281,25 @@ if __name__ == "__main__":
             for i in turns:
                 turn_kendall=[feature_res[i] for feature_res in feature_splits_res]
                 turn_res=round(np.mean(turn_kendall),3)
-                print("num splits",len(turn_kendall))
+                #print("num splits",len(turn_kendall))
                 feature_eval["$T_{"+str(i+1)+"}K$"]=turn_res
                 split_eval["$T_{"+str(i+1)+"}K$"]=turn_kendall
-                print("eval table",i+1, turn_res)
-            print("feature value calc:", time.time() - start_time)
+                #print("eval table",i+1, turn_res)
+            #print("feature value calc:", time.time() - start_time)
             latex_res[rewrite_method][feature] = feature_eval
             splits_res[rewrite_method][feature]=split_eval
+        method_latex_res=splits_res[rewrite_method]
+        for feature1,feature2 in itertools.combinations(method_latex_res.keys(),2):
+            feature1_eval=method_latex_res[feature1]
+            feature2_eval = method_latex_res[feature2]
+            feature1_win=len([1 for k in feature1_eval.keys() if feature1_eval[k]>feature2_eval[k]])
+            feature1_tie = len([1 for k in feature1_eval.keys() if feature1_eval[k] == feature2_eval[k]])
+            feature1_lose = len([1 for k in feature1_eval.keys() if feature1_eval[k] < feature2_eval[k]])
+            print(feature1,feature2,feature1_win,feature1_tie,feature1_lose)
+
     output_file="{}/{}".format(out_dir,output_file_name)
     t_test_res=get_ttest_vals(splits_res)
-    print("t_test_res",t_test_res)
+    #print("t_test_res",t_test_res)
     col_names={'or_quac':'OR QUAC','topiocqa':'TopioCQA'}
     table_main_row=col_names.get(col) if add_col_header else None
     result_to_latex(latex_res,output_file,t_test_res,table_type,table_main_row)

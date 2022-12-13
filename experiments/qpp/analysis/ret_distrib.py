@@ -29,6 +29,24 @@ if __name__ == "__main__":
     split_token="#" if col=='or_quac' else "_"
     rewrites_eval=load_eval(EVAL_PATH,REWRITE_METHODS,split_token)
     label_dict = create_label_dict(rewrites_eval, metric)
+    #####
+    cache_path="/lv_local/home/tomergur/convo_search_project/data/qpp/topic_comp/{}/{}/cache/".format(res_dir,col)
+    json_res={k:[] for k in ["t5", "all","hqe","quretec"]}
+    turns_params=[1,2,3,None]
+    turns_suffix=["_1kturns","_2kturns","_3kturns",""]
+    for param,suffix in zip(turns_params,turns_suffix):
+        model_path="{}/many_turns_bert_qpp_tokens{}.json".format(cache_path,suffix)
+        with open(model_path) as f:
+            model_json=json.load(f)
+            for method,cached_values in model_json.items():
+                modified_cached_values=[]
+                for v in cached_values:
+                    new_params=[("max_seq_length",param)]+v[0]
+                    modified_cached_values.append((new_params,v[1]))
+                json_res[method]+=modified_cached_values
+    with open("{}/many_turns_bert_qpp_tokens_skturns.json".format(cache_path),'w') as f:
+        json.dump(json_res,f)
+    #####
     pd.set_option('display.max_rows', None)
     for rewrite_method,labels in label_dict.items():
         print("rewrite method:",rewrite_method)

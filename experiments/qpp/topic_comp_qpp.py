@@ -16,6 +16,7 @@ from .qpp_utils import load_data, create_label_dict, create_ctx, calc_topic_corr
 REWRITE_METHODS = ['raw', 't5', 'all', 'hqe', 'quretec', 'manual']
 REWRITE_METHODS = ['t5', 'all', 'hqe', 'quretec']
 #REWRITE_METHODS = ['all', 'quretec']
+#REWRITE_METHODS = ['t5', 'quretec']
 #REWRITE_METHODS = ['all']
 DEFAULT_RES_DIR = "rerank_kld_100"
 DEFAULT_COL = "cast19"
@@ -193,6 +194,7 @@ if __name__ == "__main__":
     parser.add_argument("--smart_subsamples",action='store_true',default=False)
     parser.add_argument("--per_turn_tunning", action='store_true', default=False)
     parser.add_argument("--oracle_tunning",action='store_true',default=False)
+    parser.add_argument("--da_col",default=None)
     args = parser.parse_args()
     metric = args.metric
     col = args.col
@@ -209,11 +211,13 @@ if __name__ == "__main__":
     per_turn_tunning = args.per_turn_tunning
     oracle_tunning=args.oracle_tunning
     smart_subsamples=args.smart_subsamples
+    da_col=args.da_col
     EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
     RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
     runs, rewrites, rewrites_eval, turns_text = load_data(REWRITE_METHODS, EVAL_PATH, RUNS_PATH, query_rewrite_field,
                                                           col)
     label_dict = create_label_dict(rewrites_eval, metric)
+
 
     sids = rewrites_eval[REWRITE_METHODS[0]].sid.unique()
     qids = rewrites_eval[REWRITE_METHODS[0]].qid.unique()
@@ -224,10 +228,12 @@ if __name__ == "__main__":
     else:
         splits_subsamples = load_or_create_subsamples(qids, splits, qpp_res_dir, subsamples_size, max_turn)
     qpp_factory = QPPFeatureFactory(col, qpp_res_dir + "/cache/" if load_cached_feature else None)
+
     corr_res = {}
     per_turn_corr_res = {}
     first_tid = 0 if col == 'or_quac' else 1
     split_token = "#" if col == "or_quac" else "_"
+    per_turn_metric_name = "kendall" if "kendall" in qpp_eval_metric else "TPA"
     # scatter code
     '''
     scatter_base_dir="{}/scatter_{}/".format(qpp_res_dir,metric)
@@ -338,9 +344,9 @@ if __name__ == "__main__":
 
 
 
-                per_turn_corr_fold_a = [evaluate_topic_predictor(res_fold_a, fold2_labels, "sturn_{}_kendall".format(i))
+                per_turn_corr_fold_a = [evaluate_topic_predictor(res_fold_a, fold2_labels, "sturn_{}_{}".format(i,per_turn_metric_name))
                                         for i in range(first_tid, first_tid + max_turn)]
-                per_turn_corr_fold_b = [evaluate_topic_predictor(res_fold_b, fold1_labels, "sturn_{}_kendall".format(i))
+                per_turn_corr_fold_b = [evaluate_topic_predictor(res_fold_b, fold1_labels, "sturn_{}_{}".format(i,per_turn_metric_name))
                                         for i in range(first_tid, first_tid + max_turn)]
 
                 per_turn_corr_res.append(per_turn_corr_fold_a)
@@ -371,7 +377,7 @@ if __name__ == "__main__":
                                                                num_splits,subsamples_size)
         with open(feature_r_vals_path, 'w') as f:
             json.dump(corr_raw_res, f)
-        per_turn_feature_r_vals_path = "{}/exp_per_turn_kendall_{}_{}_{}_{}.json".format(qpp_res_dir, run_name, metric,
+        per_turn_feature_r_vals_path = "{}/exp_per_turn_{}_{}_{}_{}_{}.json".format(qpp_res_dir,per_turn_metric_name, run_name, metric,
                                                                                       num_splits,subsamples_size)
         with open(per_turn_feature_r_vals_path, 'w') as f:
             json.dump(per_turn_corr_raw_res, f)

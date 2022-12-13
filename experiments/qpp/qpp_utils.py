@@ -80,7 +80,7 @@ def create_ctx(runs, rewrites, turns_text, col="cast19",rewrite_ref_methods=["t5
             sid, turn_id = qid.split("#") if col == "or_quac" else qid.split("_")
             prev_turns = []
             if col != "reddit":
-                for i in range(int(turn_id)):
+                for i in range(int(turn_id)-1):
                     hist_qid = "{}#{}".format(sid, i) if col == "or_quac" else "{}_{}".format(sid, i + 1)
                     if hist_qid not in method_res_lists:
                         continue
@@ -109,7 +109,7 @@ def single_turn_corr(feature_values, labels,tid,corr_type="pearson"):
     qids=list(labels.keys())
     split_token = "#" if len(qids[0].split("#")) > 1 else "_"
     turn_labels={qid:v for qid,v in labels.items() if qid.split(split_token)[1]==tid}
-    return calc_topic_corr(feature_values,turn_labels,corr_type)
+    return evaluate_topic_predictor(feature_values,turn_labels,corr_type)
 
 def calc_topic_turn_corr(feature_values, labels, corr_type="pearson",min_queries=2):
     qids=list(labels.keys())

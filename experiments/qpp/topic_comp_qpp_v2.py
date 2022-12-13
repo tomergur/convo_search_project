@@ -19,7 +19,7 @@ from experiments.qpp.const import QPP_FEATURES_PARAMS
 REWRITE_METHODS=['raw','t5','all','hqe','quretec','manual']
 REWRITE_METHODS=['t5','all','hqe','quretec']
 #REWRITE_METHODS=['t5']
-REWRITE_METHODS=['all','quretec']
+#REWRITE_METHODS=['all','quretec']
 DEFAULT_RES_DIR="kld_100"
 DEFAULT_VALID_DIR="valid_kld_100"
 DEFAULT_RES_DIR="rerank_kld_100"
@@ -49,6 +49,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
     parser.add_argument("--metric",default="recip_rank")
     parser.add_argument("--col",default=DEFAULT_COL)
+    parser.add_argument("--valid_col",default=None)
     parser.add_argument("--res_dir",default=DEFAULT_RES_DIR)
     parser.add_argument("--valid_dir", default=DEFAULT_VALID_DIR)
     parser.add_argument("--qpp_res_dir_base",default=DEFAULT_QPP_RES_DIR)
@@ -59,6 +60,7 @@ if __name__=="__main__":
     parser.add_argument("--per_turn_tunning",action='store_true',default=False)
     parser.add_argument("--calc_threshold_predictor",action='store_true',default=False)
     parser.add_argument("--oracle_tunning",action='store_true',default=False)
+    parser.add_argument("--max_turn",type=int,default=9)
     args=parser.parse_args()
     metric = args.metric
     col=args.col
@@ -72,25 +74,33 @@ if __name__=="__main__":
     calc_threshold_predictor=args.calc_threshold_predictor
     per_turn_tunning=args.per_turn_tunning
     oracle_tunning=args.oracle_tunning
-    EVAL_VALID_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(valid_dir, col)
-    RUNS_VALID_PATH = "/v/tomergur/convo/res/{}/{}".format(valid_dir, col)
+    max_turn=args.max_turn
+    valid_col=args.valid_col if args.valid_col is not None else col
+    EVAL_VALID_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(valid_dir, valid_col)
+    RUNS_VALID_PATH = "/v/tomergur/convo/res/{}/{}".format(valid_dir, valid_col)
     runs_valid, rewrites_valid, rewrites_eval_valid, turns_text_valid = load_data(REWRITE_METHODS, EVAL_VALID_PATH, RUNS_VALID_PATH, query_rewrite_field,
-                                                          col)
+                                                          valid_col)
     label_dict_valid = create_label_dict(rewrites_eval_valid, metric)
+
     print("loaded valid data")
     EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
     RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
     runs, rewrites, rewrites_eval, turns_text = load_data(REWRITE_METHODS, EVAL_PATH, RUNS_PATH, query_rewrite_field,
                                                           col)
-    label_dict = create_label_dict(rewrites_eval, metric)
+    label_dict = create_label_dict(rewrites_eval, metric if col==valid_col else "map_cut_100")
+    print(label_dict)
     print("loaded test data")
     sids = rewrites_eval[REWRITE_METHODS[0]].sid.unique()
     qpp_res_dir = "{}/{}/{}/".format(qpp_res_dir_base, res_dir, col)
-    qpp_factory = QPPFeatureFactory(col,qpp_res_dir+"/valid_cache/" if load_cached_feature else None)
+    valid_qpp_res_dir = "{}/{}/{}/".format(qpp_res_dir_base, res_dir, valid_col)
+    #todo: change chache dir to valid_cache
+    qpp_factory = QPPFeatureFactory(valid_col,valid_qpp_res_dir+"/cache/" if load_cached_feature else None,searcher_col=col)
+    test_qpp_factory = QPPFeatureFactory(col,None)
+
     corr_res = {}
     threshold_res = {"baseline":{}}
-    ctx_valid = create_ctx(runs_valid, rewrites_valid, turns_text_valid,col)
-    ctx = create_ctx(runs, rewrites, turns_text,col)
+    ctx_valid = create_ctx(runs_valid, rewrites_valid, turns_text_valid,valid_col,REWRITE_METHODS)
+    ctx = create_ctx(runs, rewrites, turns_text,col,REWRITE_METHODS)
     # initial scatter code here
     for feature in selected_features:
         print("start calculate feature:",feature)
@@ -107,7 +117,9 @@ if __name__=="__main__":
             method_runs = runs_valid[method_name]
             method_ctx = ctx_valid[method_name]
             labels = label_dict_valid[method_name]
-
+            valid_split_token = "#" if valid_col == 'or_quac' else "_"
+            labels = {k: v for k, v in labels.items() if
+                                int(k.split(valid_split_token)[1]) < max_turn}
             method_runs_test = runs[method_name]
             labels_test=label_dict[method_name]
             method_ctx_test = ctx[method_name]
@@ -122,6 +134,8 @@ if __name__=="__main__":
             feature_calc_start_time = time.time()
             extractors = [qpp_factory.create_qpp_extractor(feature, **hp_config) for hp_config in hp_configs] if len(
                 hp_configs) > 0 else [qpp_factory.create_qpp_extractor(feature)]
+            test_extractors = [test_qpp_factory.create_qpp_extractor(feature, **hp_config) for hp_config in hp_configs] if len(
+                hp_configs) > 0 else [test_qpp_factory.create_qpp_extractor(feature)]
             feature_val_valid = [topic_evaluate_extractor(extractor, method_rewrites, labels, method_ctx, True) for extractor in
                            extractors]
 
@@ -155,7 +169,10 @@ if __name__=="__main__":
                 valid_selected_hp = np.argmax([abs(x) for x in corr_valid])
                 if len(hp_configs) > 0:
                     print(hp_configs[valid_selected_hp])
-                selected_extractor = extractors[valid_selected_hp]
+                #selected_extractor = extractors[valid_selected_hp]
+                selected_extractor = test_extractors[valid_selected_hp]
+                #TODO: change text extactor
+
                 test_corr, features_val_test = topic_evaluate_extractor(selected_extractor, method_rewrites_test,
                                                                         labels_test, method_ctx_test, True)
             corr_res[feature][method_name] = round(test_corr,3)

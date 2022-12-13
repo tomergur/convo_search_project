@@ -28,10 +28,11 @@ DEFAULT_SELECTED_FEATURES=["WIG_norm","WIG_norm_pt","NQC_norm","NQC_norm_pt","cl
 
 DEFAULT_SELECTED_FEATURES=["bert_qpp","bert_qpp_pt","st_bert_qpp_pt","bert_qpp_oracle","bert_qpp_oracle_pt",
                            "st_bert_qpp_oracle_pt"]
-
-DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_tokens"]
+#
+DEFAULT_SELECTED_FEATURES=["bert_qpp_or_quac","ref_hist_bert_qpp_or_quac","many_turns_bert_qpp_tokens_or_quac",
+                           "bert_qpp_topiocqa","ref_hist_bert_qpp_topiocqa","many_turns_bert_qpp_tokens_topiocqa"]
 REWRITE_METHODS=['t5','all','hqe','quretec']
-REWRITE_METHODS=['all','quretec']
+
 TWO_DIGITS_METRICS = ["PA","TPA"]
 
 QPP_EVAL_METRIC=["TPA","PA"]
@@ -61,12 +62,12 @@ METRICS_DISPLAY_NAME={"turn_pearson":"T$\\rho$","turn_kendall":"TK","sturn_0_pea
 
 
 #topiocqa
-QPP_EVAL_METRIC=["sturn_1_kendall","sturn_2_kendall","sturn_3_kendall","sturn_5_kendall","sturn_7_kendall","sturn_9_kendall"]
+QPP_EVAL_METRIC=["sturn_1_kendall","sturn_2_kendall","sturn_3_kendall","sturn_4_kendall","sturn_5_kendall","sturn_6_kendall","sturn_7_kendall","sturn_8_kendall","sturn_9_kendall"]
 METRICS_DISPLAY_NAME={"turn_pearson":"T$\\rho$","turn_kendall":"TK","sturn_0_pearson":"$T_{1}\\rho$",
                       "sturn_1_pearson":"$T_{1}\\rho$","sturn_4_pearson":"$T_{5}\\rho$","sturn_5_pearson":"$T_{5}\\rho$",
                       "sturn_9_pearson":"T_{10}$\\rho$","sturn_10_pearson":"T_{10}$\\rho$","sturn_1_kendall":"$T_{1}K$",
-                      "sturn_2_kendall":"$T_{2}K$","sturn_3_kendall":"$T_{3}K$","sturn_5_kendall":"$T_{5}K$",
-                      "sturn_7_kendall":"$T_{7}K$","sturn_9_kendall":"$T_{9}K$"}
+                      "sturn_2_kendall":"$T_{2}K$","sturn_3_kendall":"$T_{3}K$","sturn_4_kendall":"$T_{4}K$","sturn_5_kendall":"$T_{5}K$",
+                      "sturn_6_kendall":"$T_{6}K$","sturn_7_kendall":"$T_{7}K$","sturn_8_kendall":"$T_{8}K$","sturn_9_kendall":"$T_{9}K$"}
 
 METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC","bert_qpp":"Bert QPP",
                      "WIG_norm_pt":"WIG -HP per turn","clarity_norm_pt":"clarity -HP per turn",
@@ -75,15 +76,20 @@ METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC",
                      "st_bert_qpp_oracle_pt":"BERT QPP - fine tuned and HP per turn(HP selected by oracle)",
                      "bert_qpp_oracle": "BERT QPP - (HP selected by oracle for all turns)",
                      "bert_qpp_cls":"Bert QPP(CE loss)","bert_qpp_reg":"Bert QPP(MSE loss)",
-                     "bert_qpp_or_quac":"Bert QPP fine-tuned on Or QUAC",
-                     "bert_qpp_topiocqa":"Bert QPP fine-tuned on TopioCQA",
+                     "bert_qpp_or_quac":"[Or QUAC]Bert QPP",
+                     "bert_qpp_topiocqa":"[TopioCQA]Bert QPP",
+
                      "bert_qpp_hist":"Bert QPP+ raw history","bert_qpp_hist_or_quac":"Bert QPP+history fine-tuned on Or QUAC",
                      "bert_qpp_hist_topiocqa":"Bert QPP+history fine-tuned on TopioCQA",
                      "bert_qpp_prev":"Bert QPP+previous queries",
                      "many_turns_bert_qpp":"dialogue groupwise QPP",
+                     "many_turns_bert_qpp_tokens": "dialogue groupwise QPP",
+                     "many_turns_bert_qpp_tokens_or_quac": "[Or QUAC]dialogue groupwise QPP",
+                     "many_turns_bert_qpp_tokens_topiocqa": "[TopioCQA]dialogue groupwise QPP",
                      "many_turns_bert_qpp_online": "dialogue groupwise QPP - online inference",
                      "many_turns_bert_qpp_hist": "dialogue groupwise QPP+raw history",
                      "many_turns_bert_qpp_prev": "dialogue groupwise QPP+previous queries",
+                     "ref_hist_bert_qpp_or_quac":"[Or QUAC]Bert QPP -REF RBO","ref_hist_bert_qpp_topiocqa":"[TopioCQA]Bert QPP -REF RBO",
                      "ref_hist_bert_qpp":"Bert QPP -REF RBO","ref_hist_bert_qpp_pt":"Bert QPP - REF RBO, HP per turn "}
 
 def is_oracle(method_name):
@@ -99,7 +105,7 @@ def annotate_result(result, method_name, metric_name, col_res, t_col_res):
     if is_oracle(method_name):
         return results_str
     results = [round(float(col_res[method][metric_name]), 2 if metric_name in TWO_DIGITS_METRICS else 3) for method in col_res if not is_oracle(method)]
-    if result >= max(results):
+    if abs(result) >= max([abs(x) for x in results]):
         results_str = '\\textbf{' + results_str + '}'
     if metric_name not in t_col_res:
         return results_str
@@ -173,6 +179,7 @@ if __name__ == "__main__":
     parser.add_argument("--col", default=DEFAULT_COL)
     parser.add_argument("--res_dir", default=DEFAULT_RES_DIR)
     parser.add_argument("--features", nargs='+', default=DEFAULT_SELECTED_FEATURES)
+    parser.add_argument("--rewrite_methods", nargs='+', default=['all', 'quretec'])
     parser.add_argument("--qpp_res_dir_base",default=DEFAULT_QPP_RES_DIR)
     parser.add_argument("--corr_type",default="pearson")
     parser.add_argument("--min_turn_samples",type=int,default=0)
@@ -187,11 +194,13 @@ if __name__ == "__main__":
     qpp_res_dir_base = args.qpp_res_dir_base
     table_type = args.table_type
     output_file_name=args.output_file_name
+    REWRITE_METHODS = args.rewrite_methods
     EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
     RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
-    rewrites_eval=load_eval(EVAL_PATH,REWRITE_METHODS)
-    label_dict = create_label_dict(rewrites_eval, metric)
     sep_token="#" if col=="or_quac" else "_"
+    rewrites_eval=load_eval(EVAL_PATH,REWRITE_METHODS,sep_token)
+    label_dict = create_label_dict(rewrites_eval, metric)
+
     corr_type=args.corr_type
     out_dir="{}/{}/{}/analysis/".format(qpp_res_dir_base,res_dir,col)
     if not os.path.exists(out_dir):
@@ -204,14 +213,14 @@ if __name__ == "__main__":
         for feature in features:
             feature_eval={}
             print("calc feature:", feature)
-            if "cast" not in col:
-                feature_val_path = "{}/{}/{}/cache/{}_{}.json".format(qpp_res_dir_base, res_dir, col, feature, metric)
+            if "cast" not in col or True:
+                feature_val_path = "{}/{}/{}/cache/{}_{}.json".format(qpp_res_dir_base, res_dir, col, feature, "recip_rank")
                 with open(feature_val_path) as f:
                     feature_val = json.load(f)
             start_time=time.time()
             for eval_metric in QPP_EVAL_METRIC:
                 display_name=METRICS_DISPLAY_NAME.get(eval_metric,eval_metric)
-                if "cast" in col:
+                if "cast" in col and False:
                     table_path="{}/{}/{}/{}_{}_{}_30.csv".format(qpp_res_dir_base, res_dir, col,eval_metric,feature,metric)
                     qpp_eval_table=pd.read_csv(table_path)
                     print("eval table",qpp_eval_table.at[0,rewrite_method])

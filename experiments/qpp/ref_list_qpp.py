@@ -1,7 +1,7 @@
 import numpy as np
 
 class RefListQPP:
-    def __init__(self,qpp_predictor,ref_ctx_field_name="history",decay=None,n=10,lambd=0.1,ref_limit=None):
+    def __init__(self,qpp_predictor,ref_ctx_field_name="history",decay=None,n=10,lambd=0.1,ref_limit=None,method_type=None):
         self.qpp_predictor=qpp_predictor
         self.ref_ctx_field_name=ref_ctx_field_name
         self.n=n
@@ -9,6 +9,7 @@ class RefListQPP:
         self.decay=decay
         self.ref_limit=ref_limit
         assert(ref_limit is None or ref_ctx_field_name=="history")
+        self.method_type=method_type
 
     def calc_rbo(self,lst, lst2, p=0.95, interpolate=True):
         res = 0
@@ -50,7 +51,11 @@ class RefListQPP:
         orig_predictor_val=self.qpp_predictor.calc_qpp_feature(query,**ctx)
         refs=ctx[self.ref_ctx_field_name]
         if self.ref_limit is not None:
-            refs=refs[:-self.ref_limit]
+            refs=refs[-self.ref_limit:]
+            #print(ctx['qid'],[q[1]['qid'] for q in refs])
+        if self.method_type is not None:
+            refs=[r for r in refs if r[1]["method"] in self.method_type]
+            #print([r[1]["method"] for r in refs])
         if len(refs) == 0 or self.lambd==0:
             return orig_predictor_val
         ref_qpp_vals=[]

@@ -13,6 +13,7 @@ class ModelArguments:
     model_name_or_path: str = "bert_base_uncased"
     group_model_name_or_path: str = None
     chunk_size: int =2
+    groupwise_hidden_layers:int = 4
     use_bert_pl: bool = False
     from_pt: bool = False
     group_agg_func: str = None
@@ -34,12 +35,12 @@ def create_model(model_args):
         model = TFAutoModel.from_pretrained(model_name, from_pt=model_args.from_pt)
         if model_args.group_model_name_or_path:
             group_model = TFBertForSequenceClassification.from_pretrained(
-                model_args.group_model_name_or_path, from_pt=True, num_hidden_layers=4,
+                model_args.group_model_name_or_path, from_pt=True,
                 num_labels=num_classes) if "seq" in model_args.output_mode else TFBertForTokenClassification.from_pretrained(
-                model_args.group_model_name_or_path, from_pt=True, num_hidden_layers=4, num_labels=num_classes)
+                model_args.group_model_name_or_path, from_pt=True, num_labels=num_classes)
 
         else:
-            group_conf = BertConfig(num_hidden_layers=4, num_labels=num_classes)
+            group_conf = BertConfig(num_hidden_layers=model_args.groupwise_hidden_layers, num_labels=num_classes)
             group_model = TFBertForSequenceClassification(
                 group_conf) if "seq" in model_args.output_mode else TFBertForTokenClassification(group_conf)
 
