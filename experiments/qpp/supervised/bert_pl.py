@@ -31,8 +31,11 @@ class BertPL(tf.keras.Model):
         #tf.print("input shape", tf.shape(inputs['input_ids']))
         inputs = {k: tf.reshape(v, [-1, entry_length]) for k, v in inputs.items()}
         bert_res = self.text_encoder(**inputs, training=training)
+        ####chunking
+        #bert_res=tf.map_fn(lambda i:self.text_encoder(**{k:v[i:i+self.chunk_size,:] for k, v in inputs.items()}, training=training).pooler_output,tf.range(num_seq*seq_length,delta=self.chunk_size),fn_output_signature=tf.float32,parallel_iterations=1)
+        #text_emb = tf.reshape(bert_res, [num_seq, seq_length, self.text_encoder.config.hidden_size])
+        ### chunking res
         text_emb = tf.reshape(bert_res.pooler_output, [num_seq, seq_length, self.text_encoder.config.hidden_size])
-        #tf.print("text emb shape",tf.shape(text_emb))
         text_emb=text_emb+self.pos_encoding(text_emb)
         num_chunks = (seq_length * num_seq) / self.chunk_size
         text_emb = tf.reshape(text_emb, [num_chunks, self.chunk_size, self.text_encoder.config.hidden_size])

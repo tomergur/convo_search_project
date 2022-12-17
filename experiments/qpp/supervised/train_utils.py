@@ -14,7 +14,6 @@ class ModelArguments:
     group_model_name_or_path: str = None
     chunk_size: int =2
     groupwise_hidden_layers:int = 4
-    use_bert_pl: bool = False
     from_pt: bool = False
     group_agg_func: str = None
     max_seq_length:int =None
@@ -26,7 +25,7 @@ def create_model(model_args):
     if model_args.model_type=="seqQPP":
         model = TFAutoModel.from_pretrained(model_name, from_pt=model_args.from_pt)
         return SeqQPP(model)
-    if hasattr(model_args, "use_bert_pl" ) and model_args.use_bert_pl:
+    if model_args.model_type=="bert_pl":
         model = TFAutoModel.from_pretrained(model_name, from_pt=model_args.from_pt)
         return BertPL(model,model_args.chunk_size)
 

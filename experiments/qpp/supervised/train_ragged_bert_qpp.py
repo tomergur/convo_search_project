@@ -13,7 +13,7 @@ FEATURE_DESC = {
     'labels': tf.io.RaggedFeature(value_key="labels",partitions=[tf.io.RaggedFeature.UniformRowLength(1)],dtype=tf.float32)
 }
 
-MAX_SEQ_LENGTH=9
+MAX_SEQ_LENGTH=10
 def _parse_function(example_proto):
     # Parse the input `tf.train.Example` proto using the dictionary above.
     example = tf.io.parse_single_example(example_proto, FEATURE_DESC)
@@ -24,26 +24,6 @@ def _parse_function(example_proto):
     return {'input_ids': input_ids, 'attention_mask': attention_mask,
             'token_type_ids': token_type_ids}, labels
 
-
-def pad_data(inputs,labels,pad_to=-1):
-    if pad_to>0:
-        input_ids=inputs["input_ids"]
-        attention_mask= inputs["attention_mask"]
-        token_type_ids = inputs["token_type_ids"]
-        print("padddddddddddding!!!!", tf.shape(input_ids))
-        print(type(input_ids))
-        print("labels shape",tf.shape(labels))
-
-        cur_size=tf.shape(input_ids).shape[0]
-        print(cur_size,pad_to-cur_size)
-        num_pad=pad_to-cur_size
-        input_ids=tf.pad(input_ids,[[0,num_pad],[0,0]])
-        attention_mask = tf.pad(attention_mask, [[0, num_pad], [0, 0]])
-        token_type_ids = tf.pad(token_type_ids, [[0, num_pad], [0, 0]])
-        labels = tf.pad(labels,[[0, num_pad], [0, 0]])
-        return {'input_ids': input_ids, 'attention_mask': attention_mask,
-                'token_type_ids': token_type_ids}, labels
-    return inputs
 
 def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_function):
     dataset_files = tf.io.gfile.glob(files_path)
@@ -99,13 +79,13 @@ if __name__ == "__main__":
     with strategy.scope():
         model = create_model(model_args)
         loss =ce_loss if not model_args.use_mse else tf.keras.losses.MeanSquaredError()
-        if model_args.use_bert_pl:
+        if model_args.model_type=="bert_pl":
             loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         metrics = []
         # metrics = metrics
         #for debug ,run_eagerly=True
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=training_args.learning_rate), loss=loss,
-                          metrics=metrics)
+                          metrics=metrics,run_eagerly=False)
         if training_args.do_train:
             parse_func =  _parse_function
             train_dataset = create_dataset(data_args.train_files, training_args.train_batch_size,
@@ -113,9 +93,9 @@ if __name__ == "__main__":
                                            parse_func)
             valid_dataset = create_dataset(data_args.valid_files, training_args.eval_batch_size,
                                            training_args.eval_steps)
-            if model_args.use_bert_pl:
-                train_dataset=train_dataset.map(lambda x ,y: (x,tf.math.reduce_sum(tf.reshape(y,[-1,data_args.chunk_size]),axis=-1)))
-                valid_dataset=valid_dataset.map(lambda x ,y: (x,tf.math.reduce_sum(tf.reshape(y,[-1,data_args.chunk_size]),axis=-1)))
+            if model_args.model_type=="bert_pl":
+                train_dataset=train_dataset.map(lambda x ,y: (x,tf.math.reduce_sum(tf.reshape(y,[-1,model_args.chunk_size]),axis=-1)))
+                valid_dataset=valid_dataset.map(lambda x ,y: (x,tf.math.reduce_sum(tf.reshape(y,[-1,model_args.chunk_size]),axis=-1)))
 
             callbacks = []
             tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path)

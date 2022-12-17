@@ -36,8 +36,9 @@ DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_t
 DEFAULT_SELECTED_FEATURES=["bert_qpp","bert_qpp_pt","ref_hist_bert_qpp_1kturns","ref_hist_bert_qpp_2kturns","ref_hist_bert_qpp_3kturns","ref_hist_bert_qpp","ref_hist_bert_qpp_skturns","many_turns_bert_qpp_tokens_1kturns","many_turns_bert_qpp_tokens_2kturns","many_turns_bert_qpp_tokens_3kturns","many_turns_bert_qpp_tokens","many_turns_bert_qpp_tokens_skturns"]
 DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","ref_hist_bert_qpp_skturns","many_turns_bert_qpp_tokens","many_turns_bert_qpp_tokens_skturns"]
 DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","ref_hist_bert_qpp_skturns","many_turns_bert_qpp_tokens","many_turns_bert_qpp_tokens_skturns","ref_rewrites_bert_qpp","ref_rewrites_bert_qpp_all_methods","ref_rewrites_bert_qpp_quretec_methods","ref_rewrites_bert_qpp_t5_methods","ref_rewrites_bert_qpp_hqe_methods","rewrites_bert_qpp"]
-BASELINE_METHODS={"bert_qpp":"0","ref_hist_bert_qpp":"1"}
-#,"ref_rewrites_bert_qpp":'2'
+DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_agg_bert_qpp","many_turns_bert_qpp_tokens"]
+BASELINE_METHODS={"bert_qpp":"0","ref_hist_agg_bert_qpp":"1"}
+#,"ref_rewrites_agg_bert_qpp":'2'
 REWRITE_METHODS=['t5','all','hqe','quretec']
 DEFAULT_REWRITE_METHODS=['all','quretec']
 #REWRITE_METHODS=['all']
@@ -232,6 +233,7 @@ if __name__ == "__main__":
     parser.add_argument("--rewrite_methods",nargs="+",default=DEFAULT_REWRITE_METHODS)
     parser.add_argument("--subsamples_size",type=int,default=50)
     parser.add_argument("--add_col_header",action='store_true',default=False)
+    parser.add_argument("--qpp_eval_metric",default="kendall")
     args=parser.parse_args()
     metric=args.metric
     col=args.col
@@ -244,6 +246,7 @@ if __name__ == "__main__":
     subsamples_size=args.subsamples_size
     REWRITE_METHODS=args.rewrite_methods
     add_col_header=args.add_col_header
+    qpp_eval_metric=args.qpp_eval_metric
 
     EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
     RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
@@ -256,12 +259,14 @@ if __name__ == "__main__":
     latex_res={}
     features_exp={}
     splits_res={}
+    display_metric_name = "K" if qpp_eval_metric == "kendall" else "PA"
     for feature in features:
         feature_eval = {}
         print("calc feature:", feature)
         start_time = time.time()
-        exp_path = "{}/{}/{}/exp_per_turn_kendall_{}_{}_30_{}.json".format(qpp_res_dir_base, res_dir, col,
-                                                                       feature, metric,subsamples_size)
+        exp_path = "{}/{}/{}/exp_per_turn_{}_{}_{}_30_{}.json".format(qpp_res_dir_base, res_dir, col,
+                                                                       qpp_eval_metric,feature, metric,subsamples_size)
+
         with open(exp_path) as f:
             exp_turns = json.load(f)
         features_exp[feature]=exp_turns
@@ -282,8 +287,8 @@ if __name__ == "__main__":
                 turn_kendall=[feature_res[i] for feature_res in feature_splits_res]
                 turn_res=round(np.mean(turn_kendall),3)
                 #print("num splits",len(turn_kendall))
-                feature_eval["$T_{"+str(i+1)+"}K$"]=turn_res
-                split_eval["$T_{"+str(i+1)+"}K$"]=turn_kendall
+                feature_eval["$T_{"+str(i+1)+"}"+display_metric_name+"$"]=turn_res
+                split_eval["$T_{"+str(i+1)+"}"+display_metric_name+"$"]=turn_kendall
                 #print("eval table",i+1, turn_res)
             #print("feature value calc:", time.time() - start_time)
             latex_res[rewrite_method][feature] = feature_eval

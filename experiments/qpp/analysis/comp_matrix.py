@@ -8,12 +8,14 @@ import scipy.stats as stats
 import argparse
 
 COLLECTIONS = ['or_quac', 'topiocqa']
-REWRITE_METHODS = ['all', 'quretec', 't5', 'hqe']
+DEFAULT_REWRITE_METHODS = ['all', 'quretec', 't5', 'hqe']
 FEATURES = ['bert_qpp', 'ref_hist_bert_qpp', 'many_turns_bert_qpp_tokens','ref_rewrites_bert_qpp',"rewrites_bert_qpp",'ref_rewrites_many_turns_bert_qpp_tokens']
 #FEATURES = ['bert_qpp_pt', 'ref_hist_bert_qpp_pt', 'many_turns_bert_qpp_tokens_pt']
 FEATURES = ['bert_qpp','ref_hist_bert_qpp','ref_hist_bert_qpp_skturns', 'many_turns_bert_qpp_tokens','many_turns_bert_qpp_tokens_skturns']
 #FEATURES = ['bert_qpp','ref_hist_bert_qpp','ref_hist_bert_qpp_skturns', 'many_turns_bert_qpp_tokens','many_turns_bert_qpp_tokens_skturns']
-FEATURES=["bert_qpp","ref_hist_bert_qpp","ref_hist_bert_qpp_skturns","many_turns_bert_qpp_tokens","many_turns_bert_qpp_tokens_skturns","ref_rewrites_bert_qpp","ref_rewrites_bert_qpp_all_methods","ref_rewrites_bert_qpp_quretec_methods","ref_rewrites_bert_qpp_t5_methods","ref_rewrites_bert_qpp_hqe_methods","rewrites_bert_qpp"]
+FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_tokens","ref_rewrites_bert_qpp","rewrites_bert_qpp","ref_hist_rewrites_bert_qpp","ref_rewrites_many_turns_bert_qpp_tokens"]
+FEATURES=["bert_qpp","ref_hist_agg_bert_qpp","ref_rewrites_agg_bert_qpp","ref_combined_bert_qpp","many_turns_bert_qpp_tokens","rewrites_bert_qpp","ref_rewrites_agg_many_turns_bert_qpp_tokens","ref_hist_agg_rewrites_bert_qpp"]
+DEFAULT_FEATURES=["bert_qpp","ref_hist_agg_bert_qpp","many_turns_bert_qpp_tokens","ref_hist_agg_many_turns_bert_qpp_tokens"]
 METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC","bert_qpp":"Bert QPP",
                      "WIG_norm_pt":"WIG -HP per turn","clarity_norm_pt":"clarity -HP per turn",
                      "NQC_norm_pt":"NQC -HP per turn","bert_qpp_pt":"Bert QPP -HP per turn",
@@ -61,13 +63,13 @@ class CompResults:
         return CompResults(wins, ties, losses, sgni_wins, sgni_losses)
 
 
-def load_feature_expr(col, features):
+def load_feature_expr(col, features,qpp_eval_metric):
     res = {}
     for feature in features:
         feature_eval = {}
         print("calc feature:", feature)
-        exp_path = "{}/{}/{}/exp_per_turn_kendall_{}_{}_30_{}.json".format(qpp_res_dir_base, res_dir, col,
-                                                                           feature, metric, subsamples_size)
+        exp_path = "{}/{}/{}/exp_per_turn_{}_{}_{}_30_{}.json".format(qpp_res_dir_base, res_dir, col,
+                                                                           qpp_eval_metric,feature, metric, subsamples_size)
         with open(exp_path) as f:
             exp_turns = json.load(f)
         res[feature] = exp_turns
@@ -118,11 +120,16 @@ if __name__ == "__main__":
     parser.add_argument("--cols", nargs='+', default=COLLECTIONS)
     parser.add_argument("--subsamples_size", type=int,default=50)
     parser.add_argument("--output_path",default=None)
-
+    parser.add_argument("--qpp_eval_metric",default="kendall")
+    parser.add_argument("--features",nargs='+',default=DEFAULT_FEATURES)
+    parser.add_argument("--rewrite_methods",nargs='+',default=DEFAULT_REWRITE_METHODS)
     args=parser.parse_args()
     collections=args.cols
     subsamples_size = args.subsamples_size
     output_path=args.output_path
+    qpp_eval_metric=args.qpp_eval_metric
+    FEATURES=args.features
+    REWRITE_METHODS=args.rewrite_methods
     res_dir = "rerank_kld_100"
     qpp_res_dir_base = "/lv_local/home/tomergur/convo_search_project/data/qpp/topic_comp/"
     metric = "recip_rank"
@@ -132,7 +139,7 @@ if __name__ == "__main__":
         EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval/{}/{}".format(res_dir, col)
         RUNS_PATH = "/v/tomergur/convo/res/{}/{}".format(res_dir, col)
         sep_token = "#" if col == "or_quac" else "_"
-        features_exp = load_feature_expr(col, FEATURES)
+        features_exp = load_feature_expr(col, FEATURES,qpp_eval_metric)
         for rewrite_method in REWRITE_METHODS:
             print("calc res for:", rewrite_method)
             features_eval = {f: [] for f in FEATURES}

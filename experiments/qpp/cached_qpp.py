@@ -1,4 +1,14 @@
 import json
+
+class KeyValueQPP:
+    def __init__(self,cache):
+        self.cache=cache
+    def calc_qpp_feature(self,query,**ctx):
+        method_name=ctx["method"]
+        qid=ctx["qid"]
+        return self.cache[method_name][qid]
+
+
 class CachedQPP:
     def __init__(self,predictor,feature_path,**params):
         self.predictor = predictor
