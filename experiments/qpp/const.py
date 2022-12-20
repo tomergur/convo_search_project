@@ -47,7 +47,7 @@ QPP_FEATURES_PARAMS = {"WIG": [{"k": v} for v in K_VALS],
                        "bert_qpp_3": [{"suffix": v} for v in
                                     ["_v1_1", "_v1_2", "_v1_3", "_v2_1", "_v2_2", "_v2_3"]],
 
-                       "bert_pl": [{"suffix": v} for v in ["_v2_1", "_v2_2", "_v2_3","_v1_1", "_v1_2", "_v1_3"]],
+                       "bert_pl": [{"suffix": v} for v in ["_v1_1","_v2_1"]],
                        "seq_qpp": [{"suffix": v} for v in [ "_v1_1", "_v1_2", "_v1_3", "_v1_4", "_v1_5","_v2_1", "_v2_2", "_v2_3", "_v2_4", "_v2_5"]],
                        "seq_qpp_3": [{"suffix": v} for v in
                                    ["_v1_1", "_v1_2", "_v1_3", "_v2_1", "_v2_2", "_v2_3"]],

@@ -64,6 +64,7 @@ def create_many_docs_dataset(data_to_tokenize,max_rows_per_file):
         if label is None:
             print("missing label")
             continue
+        print(qid)
         if j % 100 == 0:
             print("num serialized:", j)
         if j % max_rows_per_file == 0:
@@ -130,6 +131,7 @@ if __name__ == "__main__":
     parser.add_argument("--selected_tid",default=None)
     parser.add_argument("--top_docs",type=int,default=1)
     parser.add_argument("--qrel_path",default=None)
+    parser.add_argument("--max_tid",type=int,default=None)
 
     # parser.add_argument('--qrel_path',default=QREL_PATH)
     args = parser.parse_args()
@@ -147,6 +149,7 @@ if __name__ == "__main__":
     top_docs=args.top_docs
     selected_tid=args.selected_tid
     qrel_path=args.qrel_path
+    max_tid=args.max_tid
     query_field_name = "second_stage_queries" if args.is_rerank else 'first_stage_rewrites'
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=True)
     input_file = "{}/{}/{}/{}_queries.json".format(RES_PATH, setting_name, col, run_name)
@@ -178,6 +181,8 @@ if __name__ == "__main__":
         #print(i, qid)
         raw_query = query_json[query_field_name][0]
         sid, tid = qid.split(split_token)
+        if max_tid is not None and int(tid)>=max_tid+first_tid:
+            continue
         if append_history or append_prev_turns:
             if int(tid) > first_tid:
                 hist = []

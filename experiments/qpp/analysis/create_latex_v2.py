@@ -32,12 +32,17 @@ DEFAULT_SELECTED_FEATURES=["WIG_norm","WIG_norm_pt","NQC_norm","NQC_norm_pt","cl
 
 DEFAULT_SELECTED_FEATURES=["bert_qpp_cls","ref_hist_bert_qpp_cls","many_turns_bert_qpp_cls"]
 BASELINE_METHODS={"bert_qpp_cls":"*"}
-DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","many_turns_bert_qpp_tokens","ref_rewrites_bert_qpp","rewrites_bert_qpp","ref_rewrites_many_turns_bert_qpp_tokens"]
-DEFAULT_SELECTED_FEATURES=["bert_qpp","bert_qpp_pt","ref_hist_bert_qpp_1kturns","ref_hist_bert_qpp_2kturns","ref_hist_bert_qpp_3kturns","ref_hist_bert_qpp","ref_hist_bert_qpp_skturns","many_turns_bert_qpp_tokens_1kturns","many_turns_bert_qpp_tokens_2kturns","many_turns_bert_qpp_tokens_3kturns","many_turns_bert_qpp_tokens","many_turns_bert_qpp_tokens_skturns"]
 DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","ref_hist_bert_qpp_skturns","many_turns_bert_qpp_tokens","many_turns_bert_qpp_tokens_skturns"]
 DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_bert_qpp","ref_hist_bert_qpp_skturns","many_turns_bert_qpp_tokens","many_turns_bert_qpp_tokens_skturns","ref_rewrites_bert_qpp","ref_rewrites_bert_qpp_all_methods","ref_rewrites_bert_qpp_quretec_methods","ref_rewrites_bert_qpp_t5_methods","ref_rewrites_bert_qpp_hqe_methods","rewrites_bert_qpp"]
-DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_agg_bert_qpp","many_turns_bert_qpp_tokens"]
-BASELINE_METHODS={"bert_qpp":"0","ref_hist_agg_bert_qpp":"1"}
+
+# combined rep.
+DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_hist_agg_bert_qpp","ref_rewrites_agg_bert_qpp","ref_combined_bert_qpp","bert_pl","ref_hist_agg_bert_pl","ref_rewrites_agg_bert_pl","ref_combined_bert_pl","many_turns_bert_qpp_tokens","ref_rewrites_agg_many_turns_bert_qpp_tokens","rewrites_bert_qpp","ref_hist_agg_rewrites_bert_qpp"]
+BASELINE_METHODS={"bert_qpp":"0","ref_hist_agg_bert_qpp":"1","ref_rewrites_agg_bert_qpp":'2'}
+
+#rewrites comp.
+#DEFAULT_SELECTED_FEATURES=["bert_qpp","ref_rewrites_agg_bert_qpp","rewrites_bert_qpp","bert_pl","ref_rewrites_agg_bert_pl"]
+#BASELINE_METHODS={"bert_qpp":"0","ref_rewrites_agg_bert_qpp":'1'}
+
 #,"ref_rewrites_agg_bert_qpp":'2'
 REWRITE_METHODS=['t5','all','hqe','quretec']
 DEFAULT_REWRITE_METHODS=['all','quretec']
@@ -85,6 +90,7 @@ METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC",
                      "bert_qpp_hist":"Bert QPP+ raw history","bert_qpp_hist_or_quac":"Bert QPP+history fine-tuned on Or QUAC",
                      "bert_qpp_hist_topiocqa":"Bert QPP+history fine-tuned on TopioCQA",
                      "bert_qpp_prev":"Bert QPP+previous queries",
+                     "bert_pl": "Bert PL ",
                      "many_turns_bert_qpp":"dialogue groupwise QPP",
                      "many_turns_bert_qpp_tokens": "dialogue groupwise QPP",
                      "many_turns_bert_qpp_tokens_skturns": "dialogue groupwise QPP(vary history length)",
@@ -93,15 +99,25 @@ METHOD_DISPLAY_NAME={"WIG_norm":"WIG","clarity_norm":"clarity","NQC_norm":"NQC",
                      "many_turns_bert_qpp_prev": "dialogue groupwise QPP+previous queries",
                      "seq_qpp":"dialogue LSTM QPP",
                      "rewrites_bert_qpp": "rewrites groupwise qpp",
+                     "ref_hist_agg_rewrites_bert_qpp": "rewrites groupwise qpp - history REF RBO ",
                      "ref_rewrites_bert_qpp":"Bert QPP -rewrites REF RBO",
+                     "ref_rewrites_agg_bert_qpp": "Bert QPP -rewrites REF RBO",
+                     "ref_rewrites_agg_many_turns_bert_qpp_tokens": "dialogue groupwise QPP -rewrites REF RBO",
+                     "ref_rewrites_agg_bert_pl": "Bert pl -rewrites REF RBO",
+                     "ref_combined_bert_qpp":"Bert QPP - combined REF RBO",
+                     "ref_combined_many_turns_bert_qpp_tokens": "dialogue groupwise QPP - combined REF RBO",
+                     "ref_combined_bert_pl": "Bert pl - combined REF RBO",
                      "ref_rewrites_bert_qpp_all_methods": "Bert QPP -all rewrite REF RBO",
                      "ref_rewrites_bert_qpp_t5_methods": "Bert QPP -t5 rewrite REF RBO",
                      "ref_rewrites_bert_qpp_quretec_methods": "Bert QPP -quretec rewrite REF RBO",
                      "ref_rewrites_bert_qpp_hqe_methods": "Bert QPP -hqe rewrite REF RBO",
                      "ref_hist_bert_qpp_cls":"Bert QPP -REF RBO","many_turns_bert_qpp_cls":"dialogue groupwise QPP",
                      "ref_hist_bert_qpp": "Bert QPP - history REF RBO",
+                     "ref_hist_agg_bert_qpp": "Bert QPP - history REF RBO",
+                     "ref_hist_agg_many_turns_bert_qpp_tokens": "dialogue groupwise QPP - history REF RBO",
+                     "ref_hist_agg_bert_pl": "Bert PL - history REF RBO",
                      "ref_hist_bert_qpp_skturns": "Bert QPP - history REF RBO(varying history size)",
-                     "ref_hist_bert_qpp":"Bert QPP - history REF RBO","ref_hist_bert_qpp_pt":"Bert QPP - REF RBO, HP per turn "}
+                     "ref_hist_bert_qpp":"Bert QPP - history REF RBO","ref_hist_bert_qpp_pt":"Bert QPP - REF RBO, HP per turn"}
 
 def is_oracle(method_name):
     return ('manual' in method_name) or ('oracle' in method_name)

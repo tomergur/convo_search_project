@@ -4,6 +4,8 @@ from transformers import HfArgumentParser, TFTrainingArguments
 from dataclasses import dataclass
 import json
 import os
+from functools import partial
+
 from experiments.qpp.supervised.train_utils import create_model,ce_loss,CheckpointTransformerModel,ModelArguments
 
 FEATURE_DESC = {
@@ -13,14 +15,13 @@ FEATURE_DESC = {
     'labels': tf.io.RaggedFeature(value_key="labels",partitions=[tf.io.RaggedFeature.UniformRowLength(1)],dtype=tf.float32)
 }
 
-MAX_SEQ_LENGTH=10
-def _parse_function(example_proto):
+def _parse_function(example_proto,max_seq_length):
     # Parse the input `tf.train.Example` proto using the dictionary above.
     example = tf.io.parse_single_example(example_proto, FEATURE_DESC)
-    input_ids = tf.cast(example['input_ids'][:MAX_SEQ_LENGTH], tf.int32)
-    attention_mask = tf.cast(example['attention_mask'][:MAX_SEQ_LENGTH], tf.int32)
-    token_type_ids = tf.cast(example['token_type_ids'][:MAX_SEQ_LENGTH], tf.int32)
-    labels = tf.cast(example['labels'][:MAX_SEQ_LENGTH], tf.float32)
+    input_ids = tf.cast(example['input_ids'][:max_seq_length], tf.int32)
+    attention_mask = tf.cast(example['attention_mask'][:max_seq_length], tf.int32)
+    token_type_ids = tf.cast(example['token_type_ids'][:max_seq_length], tf.int32)
+    labels = tf.cast(example['labels'][:max_seq_length], tf.float32)
     return {'input_ids': input_ids, 'attention_mask': attention_mask,
             'token_type_ids': token_type_ids}, labels
 
@@ -51,6 +52,7 @@ class DataArguments:
     save_best_only: bool = False
     backup_dir: str = None
     early_stop: bool = False
+    data_max_seq_length: int = 9
 
 
 
@@ -87,12 +89,12 @@ if __name__ == "__main__":
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=training_args.learning_rate), loss=loss,
                           metrics=metrics,run_eagerly=False)
         if training_args.do_train:
-            parse_func =  _parse_function
+            parse_func = partial(_parse_function,max_seq_length=data_args.data_max_seq_length)
             train_dataset = create_dataset(data_args.train_files, training_args.train_batch_size,
                                            training_args.max_steps,
                                            parse_func)
             valid_dataset = create_dataset(data_args.valid_files, training_args.eval_batch_size,
-                                           training_args.eval_steps)
+                                           training_args.eval_steps,parse_func)
             if model_args.model_type=="bert_pl":
                 train_dataset=train_dataset.map(lambda x ,y: (x,tf.math.reduce_sum(tf.reshape(y,[-1,model_args.chunk_size]),axis=-1)))
                 valid_dataset=valid_dataset.map(lambda x ,y: (x,tf.math.reduce_sum(tf.reshape(y,[-1,model_args.chunk_size]),axis=-1)))

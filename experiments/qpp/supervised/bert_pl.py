@@ -10,6 +10,7 @@ class BertPL(tf.keras.Model):
         text_model_path = model_path + "/text_embed/"
         text_model = TFAutoModel.from_pretrained(text_model_path)
         bert_pl=BertPL(text_model,chunk_size)
+        bert_pl.chunk_encoder.build(input_shape=(1, None, text_model.config.hidden_size))
         bert_pl.chunk_encoder.load_weights('{}/chunk_encoder.h5'.format(model_path))
         return bert_pl
 
