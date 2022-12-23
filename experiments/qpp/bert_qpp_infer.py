@@ -241,16 +241,15 @@ class BertQPP:
 
 
 class BertPLQPP:
-    # TODO modify infer parameter
-    TOP_DOCS = 10
 
-    def __init__(self, searcher, model_path_pattern, col, chunk_size):
+    def __init__(self, searcher, model_path_pattern, col, chunk_size,top_docs=10):
         self.searcher = searcher
         self.model_path_pattern = model_path_pattern
         self.col = col
         self.i = 0
         self.chunk_size = chunk_size
         self.method = None
+        self.top_docs=top_docs
 
     def calc_qpp_feature(self, query, **ctx):
         if self.i % 100 == 0:
@@ -262,7 +261,7 @@ class BertPLQPP:
             self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
             self.model = BertPL.from_pretrained(model_path, self.chunk_size)
             self.method = cur_method
-        passages = [get_passage(self.searcher, ctx['res_list'][i][0]) for i in range(BertPLQPP.TOP_DOCS)]
+        passages = [get_passage(self.searcher, ctx['res_list'][i][0]) for i in range(self.top_docs)]
         query = [modify_query(query, ctx, False, False)] * len(passages)
         return self.calc_query_score(query, passages)
 
@@ -273,9 +272,9 @@ class BertPLQPP:
         ret = {k: tf.expand_dims(v, 0) for k, v in ret.items()}
         logits = self.model(ret, training=False)
         scores = tf.keras.layers.Activation(tf.nn.softmax)(logits)
-        print("scores", scores.numpy())
+        #print("scores", scores.numpy())
         num_rel = tf.math.argmax(scores, axis=-1).numpy()
-        print("num rel", num_rel)
+        #print("num rel", num_rel)
         return sum([s.item() / i for i, s in enumerate(num_rel, start=1)])
         return [s.item() for s in scores[:, -1]]
 

@@ -158,6 +158,9 @@ if __name__ == "__main__":
             passages+=[json.loads(doc.raw())["contents"] for doc in docs]
             queries.append(query)
             labels.append(label)
+        if len(passages)<len(REWRITE_METHODS)*top_docs:
+            print("not enough docs:",qid,len(passages))
+            continue
         data_to_tokenize[qid]=(queries,passages,labels)
 
     create_dataset(data_to_tokenize,top_docs,max_rows_per_file)

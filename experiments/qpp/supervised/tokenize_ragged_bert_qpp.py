@@ -89,7 +89,7 @@ def create_dialogue_dataset(data_to_tokenize,max_rows_per_file,split_token,selec
         if selected_tid and tid!=selected_tid:
             #print(tid,selected_tid)
             continue
-        print(qid)
+        #print(qid)
         if j % 100 == 0:
             print("num serialized:", j)
         if j % max_rows_per_file == 0:
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     parser.add_argument("--append_prev_turns", action='store_true', default=False)
     parser.add_argument("--dataset_mode",default="dialogue")
     parser.add_argument("--selected_tid",default=None)
-    parser.add_argument("--top_docs",type=int,default=1)
+    parser.add_argument("--max_top_docs",type=int,default=1)
     parser.add_argument("--qrel_path",default=None)
     parser.add_argument("--max_tid",type=int,default=None)
 
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     assert (not (append_history and append_prev_turns))
     dataset_mode=args.dataset_mode
     assert(dataset_mode in VALID_DATASET_MODES)
-    top_docs=args.top_docs
+    max_top_docs=args.max_top_docs
     selected_tid=args.selected_tid
     qrel_path=args.qrel_path
     max_tid=args.max_tid
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     searcher = SimpleSearcher("{}/{}".format(INDEXES_DIR, col))
     # unique for bert qpp
     #top_docs = runs[runs.ranks == 1].set_index("qid").docid.to_dict()
-    top_docs_df=runs[runs.ranks <= top_docs]
+    top_docs_df=runs[runs.ranks <= max_top_docs]
     top_docs ={qid: q_top_docs.docid.to_list() for qid,q_top_docs in top_docs_df.groupby('qid')}
     data_to_tokenize={}
     max_turn={}
@@ -202,6 +202,9 @@ if __name__ == "__main__":
         max_turn[sid] = max(int(tid), max_turn.get(sid, 0))
         top_doc_ids = top_docs[qid]
         docs = [searcher.doc(top_doc_id) for top_doc_id in top_doc_ids]
+        if len(top_doc_ids)<max_top_docs:
+            print("not enough docs :",len(top_doc_ids))
+            continue
         label = metrics_values.get(qid,DEFAULT_LABEL)
         if qrel is not None:
             #print("qrel",qrel)

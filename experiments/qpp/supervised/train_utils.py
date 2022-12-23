@@ -3,6 +3,7 @@ from transformers.models.bert import BertConfig, TFBertForTokenClassification, T
 from experiments.qpp.supervised.groupwise_model import GroupwiseBert
 from  experiments.qpp.supervised.bert_pl import BertPL
 from  experiments.qpp.supervised.seq_qpp_model import SeqQPP
+from  experiments.qpp.supervised.groupwise_bert_pl import GroupwiseBertPL
 import tensorflow as tf
 import keras
 from dataclasses import dataclass
@@ -28,7 +29,8 @@ def create_model(model_args):
     if model_args.model_type=="bert_pl":
         model = TFAutoModel.from_pretrained(model_name, from_pt=model_args.from_pt)
         return BertPL(model,model_args.chunk_size)
-
+    if model_args.model_type=="groupwise_bert_pl":
+        return GroupwiseBertPL.create_model(model_args.model_name_or_path,model_args.groupwise_hidden_layers,model_args.chunk_size)
     num_classes = 1 if model_args.use_mse else 2
     if model_args.model_type=="groupwise":
         model = TFAutoModel.from_pretrained(model_name, from_pt=model_args.from_pt)

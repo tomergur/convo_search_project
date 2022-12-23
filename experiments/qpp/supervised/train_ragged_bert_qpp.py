@@ -30,8 +30,8 @@ def create_dataset(files_path, batch_size, max_steps=-1, parse_func=_parse_funct
     dataset_files = tf.io.gfile.glob(files_path)
     raw_train_data = tf.data.TFRecordDataset(dataset_files, num_parallel_reads=None)
     parsed_train_dataset = raw_train_data.map(parse_func, num_parallel_calls=tf.data.AUTOTUNE)
-    train_dataset = parsed_train_dataset.shuffle(buffer_size=1000)
-    #train_dataset = parsed_train_dataset
+    #train_dataset = parsed_train_dataset.shuffle(buffer_size=1000)
+    train_dataset = parsed_train_dataset
     if max_steps > -1:
         max_train_size = max_steps * batch_size
         print("number of train samples:", max_train_size)
