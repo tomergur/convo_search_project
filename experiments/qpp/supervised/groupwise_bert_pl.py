@@ -1,7 +1,18 @@
 import tensorflow as tf
 import keras_nlp
 from transformers import TFAutoModel,BertConfig,TFBertForTokenClassification
+import os
 class GroupwiseBertPL(tf.keras.Model):
+
+    @staticmethod
+    def from_pretrained(model_path,lists_lengths):
+        text_embed_path = "{}/text_embed".format(model_path)
+        group_path = "{}/group_model".format(model_path)
+        lists_encoder_path="{}/lists_encoder".format(model_path)
+        text_model = TFAutoModel.from_pretrained(text_embed_path)
+        lstm = tf.keras.Sequential([tf.keras.layers.LSTM(text_model.config.hidden_size, dropout=0.2, time_major=False)])
+        lstm.build(input_shape=(1, None, text_model.config.hidden_size))
+        lstm.load_weights('{}/chunk_encoder.h5'.format(lists_encoder_path))
 
     @staticmethod
     def create_model(text_embed_model_name,groupwise_hidden_layers,lists_lengths):
@@ -44,6 +55,8 @@ class GroupwiseBertPL(tf.keras.Model):
         lists_encoder_path="{}/lists_encoder".format(output_path)
         self.text_encoder.save_pretrained(text_embed_path)
         self.groupwise_model.save_pretrained(group_path)
+        if not os.path.exists(lists_encoder_path):
+            os.mkdir(lists_encoder_path)
         self.list_encoder.save_weights('{}/chunk_encoder.h5'.format(lists_encoder_path))
 
 

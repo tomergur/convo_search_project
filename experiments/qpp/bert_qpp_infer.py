@@ -4,6 +4,7 @@ import tensorflow as tf
 from keras import backend as K
 from .supervised.groupwise_model import GroupwiseBert
 from .supervised.bert_pl import BertPL
+from .supervised.groupwise_bert_pl import GroupwiseBertPL
 from .supervised.seq_qpp_model import SeqQPP
 
 
@@ -111,7 +112,7 @@ class SingleTurnBertQPP:
 class RewritesBertQPP:
     REWRITE_METHODS = ['t5', 'all', 'hqe', 'quretec']
 
-    def __init__(self, searcher, model_path, append_history=False, append_prev_turns=False):
+    def __init__(self, searcher, model_path,top_docs=1, append_history=False, append_prev_turns=False):
         self.searcher = searcher
         self.model_path=model_path
         self.model=None
@@ -119,6 +120,7 @@ class RewritesBertQPP:
         self.append_history = append_history
         self.append_prev_turns = append_prev_turns
         self.i = 0
+        self.top_docs=top_docs
         self.cache = {k: {} for k in RewritesBertQPP.REWRITE_METHODS}
 
     def calc_group_scores(self, queries, passages):
@@ -138,7 +140,10 @@ class RewritesBertQPP:
         #TODO: fix lazy evaluation?????
         if self.model is None:
             K.clear_session()
-            self.model = GroupwiseBert.from_pretrained(self.model_path, output_mode="tokens")
+            if self.top_docs==1:
+                self.model = GroupwiseBert.from_pretrained(self.model_path, output_mode="tokens")
+            else:
+                self.model=GroupwiseBertPL.from_pretrained()
         if self.i % 100 == 0:
             print("bert qpp:", self.i)
         self.i += 1
@@ -147,7 +152,7 @@ class RewritesBertQPP:
         if qid in self.cache[cur_method]:
             return self.cache[cur_method][qid]
         res_list = ctx["res_list"]
-        top_doc_id = res_list[0][0]
+        top_doc_id = res_list[0][:self.top_docs]
         rewrites = {cur_method: (query, top_doc_id)}
         for rewrite, rewrite_ctx in ctx['ref_rewrites']:
             res_list = rewrite_ctx["res_list"]
