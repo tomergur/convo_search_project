@@ -1,6 +1,6 @@
 import tensorflow as tf
 import keras_nlp
-from transformers import TFAutoModel,BertConfig,TFBertForTokenClassification
+from transformers import TFAutoModel,BertConfig,TFBertForTokenClassification,TFAutoModelForTokenClassification
 import os
 class GroupwiseBertPL(tf.keras.Model):
 
@@ -13,22 +13,31 @@ class GroupwiseBertPL(tf.keras.Model):
         lstm = tf.keras.Sequential([tf.keras.layers.LSTM(text_model.config.hidden_size, dropout=0.2, time_major=False)])
         lstm.build(input_shape=(1, None, text_model.config.hidden_size))
         lstm.load_weights('{}/chunk_encoder.h5'.format(lists_encoder_path))
+        with tf.name_scope("tf_bert") as scope:
+                group_model = TFAutoModelForTokenClassification.from_pretrained(group_path)
+        return GroupwiseBertPL(text_model,lstm,group_model,lists_lengths)
 
     @staticmethod
-    def create_model(text_embed_model_name,groupwise_hidden_layers,lists_lengths):
+    def create_model(text_embed_model_name,groupwise_hidden_layers,lists_lengths,agg_func=None):
         text_model=TFAutoModel.from_pretrained(text_embed_model_name)
         lstm = tf.keras.Sequential([tf.keras.layers.LSTM(text_model.config.hidden_size, dropout=0.2, time_major=False)])
         group_conf = BertConfig(num_hidden_layers=groupwise_hidden_layers, num_labels=2)
         groupwise_model =  TFBertForTokenClassification(group_conf)
-        return GroupwiseBertPL(text_model,lstm,groupwise_model,lists_lengths)
+        return GroupwiseBertPL(text_model,lstm,groupwise_model,lists_lengths,agg_func)
 
-    def __init__(self,text_encoder,list_encoder,groupwise_model,lists_lengths):
+    def __init__(self,text_encoder,list_encoder,groupwise_model,lists_lengths,agg_func=None):
         super(GroupwiseBertPL, self).__init__()
         self.text_encoder=text_encoder
         self.groupwise_model=groupwise_model
         self.list_encoder=list_encoder
         self.lists_lengths=lists_lengths
         self.pos_encoding = keras_nlp.layers.SinePositionEncoding()
+        self.agg_func=None
+        if agg_func == "last":
+            self.agg_func = lambda x: x[:, -1] if tf.shape(x)[1] > 0 else x[0]
+        else:
+            self.agg_func = None
+
 
     def call(self, inputs, training=False):
         input_shape = tf.shape(inputs['input_ids'])
@@ -46,8 +55,10 @@ class GroupwiseBertPL(tf.keras.Model):
         #tf.print(tf.shape(lists_embedding))
         lists_embedding=tf.reshape(lists_embedding,[num_seq,num_lists,self.text_encoder.config.hidden_size])
         group_inputs = {'inputs_embeds': lists_embedding}
-        res = self.groupwise_model(group_inputs, training=training)
-        return res.logits
+        res = self.groupwise_model(group_inputs, training=training).logits
+        if self.agg_func is not None:
+            return self.agg_func(res)
+        return res
 
     def save_pretrained(self,output_path):
         text_embed_path = "{}/text_embed".format(output_path)

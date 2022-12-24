@@ -30,7 +30,7 @@ def create_model(model_args):
         model = TFAutoModel.from_pretrained(model_name, from_pt=model_args.from_pt)
         return BertPL(model,model_args.chunk_size)
     if model_args.model_type=="groupwise_bert_pl":
-        return GroupwiseBertPL.create_model(model_args.model_name_or_path,model_args.groupwise_hidden_layers,model_args.chunk_size)
+        return GroupwiseBertPL.create_model(model_args.model_name_or_path,model_args.groupwise_hidden_layers,model_args.chunk_size,model_args.group_agg_func)
     num_classes = 1 if model_args.use_mse else 2
     if model_args.model_type=="groupwise":
         model = TFAutoModel.from_pretrained(model_name, from_pt=model_args.from_pt)

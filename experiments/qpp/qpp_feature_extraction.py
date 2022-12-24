@@ -79,6 +79,9 @@ class QPPFeatureFactory:
         qpp_dict["rewrites_bert_qpp"] = lambda hp_config: RewritesBertQPP(self.searcher,
                                                                           "/v/tomergur/convo/qpp_models/rewrites_bert_qpp_rerank/{}_{}".format(
                                                                               col, hp_config['suffix']))
+        qpp_dict["rewrites_bert_qpp_8"] = lambda hp_config: RewritesBertQPP(self.searcher,
+                                                                          "/v/tomergur/convo/qpp_models/rewrites_bert_qpp_rerank_8/{}_{}".format(
+                                                                              col, hp_config['suffix']),8)
         qpp_dict["many_turns_bert_qpp_tokens_or_quac"] = lambda hp_config: GroupwiseBertQPP(self.searcher,
                                                                                     "/v/tomergur/convo/qpp_models/many_turns_qpp_rerank_tokens/{}_{}" +
                                                                                     hp_config['suffix'], "or_quac",

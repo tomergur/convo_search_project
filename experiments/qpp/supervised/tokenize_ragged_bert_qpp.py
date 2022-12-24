@@ -55,7 +55,40 @@ RES_PATH = "/v/tomergur/convo/res"
 EVAL_PATH = "/lv_local/home/tomergur/convo_search_project/data/eval"
 INDEXES_DIR = "/v/tomergur/convo/indexes"
 DEFAULT_LABEL=None
-VALID_DATASET_MODES=["dialogue","many_docs"]
+VALID_DATASET_MODES=["dialogue","many_docs","dialogue_limited"]
+
+def create_dialogue_limited_dataset(data_to_tokenize,max_rows_per_file,split_token,max_hist_length=3):
+    j = 0
+    file_idx = 1
+    print("limited dataset")
+    for qid, (query, q_passages, label) in data_to_tokenize.items():
+        if label is None:
+            print("missing label")
+            continue
+        if j % 100 == 0:
+            print("num serialized:", j)
+        if j % max_rows_per_file == 0:
+            writer = tf.io.TFRecordWriter(output_path_format.format(file_idx))
+            file_idx += 1
+        j += 1
+        sid, tid = qid.split(split_token)
+        queries=[]
+        passages=[]
+        for i in range(max(int(tid)-max_hist_length,0),int(tid)):
+            cur_turn_qid="{}{}{}".format(sid,split_token,i)
+            #print("cur_turn_qid", qid, cur_turn_qid)
+            if cur_turn_qid not in data_to_tokenize:
+                continue
+            #print("add history qid",qid,cur_turn_qid)
+            cur_query, cur_psgs, turn_label = data_to_tokenize[cur_turn_qid]
+            queries+=[cur_query]*len(cur_psgs)
+            passages+=cur_psgs
+        queries+=[query]*len(q_passages)
+        passages+=q_passages
+        labels= [label] if isinstance(label, float) else label
+        serialize_dataset_row(queries, passages, labels, tokenizer, writer)
+
+
 
 def create_many_docs_dataset(data_to_tokenize,max_rows_per_file):
     j = 0
@@ -79,6 +112,7 @@ def create_many_docs_dataset(data_to_tokenize,max_rows_per_file):
 def create_dialogue_dataset(data_to_tokenize,max_rows_per_file,split_token,selected_tid=None):
     j = 0
     file_idx = 1
+
     for qid, (query, q_passages, label) in data_to_tokenize.items():
         if label is None:
             print("missing label")
@@ -218,5 +252,8 @@ if __name__ == "__main__":
         data_to_tokenize[qid]=(query,passages,label)
     if dataset_mode=="many_docs":
         create_many_docs_dataset(data_to_tokenize,max_rows_per_file)
-    else:
+    elif dataset_mode=="dialogue":
         create_dialogue_dataset(data_to_tokenize,max_rows_per_file,split_token,selected_tid)
+    else:
+        create_dialogue_limited_dataset(data_to_tokenize,max_rows_per_file,split_token)
+

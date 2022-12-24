@@ -143,7 +143,7 @@ class RewritesBertQPP:
             if self.top_docs==1:
                 self.model = GroupwiseBert.from_pretrained(self.model_path, output_mode="tokens")
             else:
-                self.model=GroupwiseBertPL.from_pretrained()
+                self.model=GroupwiseBertPL.from_pretrained(self.model_path,self.top_docs)
         if self.i % 100 == 0:
             print("bert qpp:", self.i)
         self.i += 1
@@ -152,15 +152,16 @@ class RewritesBertQPP:
         if qid in self.cache[cur_method]:
             return self.cache[cur_method][qid]
         res_list = ctx["res_list"]
-        top_doc_id = res_list[0][:self.top_docs]
-        rewrites = {cur_method: (query, top_doc_id)}
+        top_doc_ids = [x[0] for x in res_list[:self.top_docs]]
+        rewrites = {cur_method: (query, top_doc_ids)}
         for rewrite, rewrite_ctx in ctx['ref_rewrites']:
             res_list = rewrite_ctx["res_list"]
-            top_doc_id = res_list[0][0]
-            rewrites[rewrite_ctx['method']] = (rewrite, top_doc_id)
-        queries = [rewrites[rewrite_method][0] for rewrite_method in RewritesBertQPP.REWRITE_METHODS]
-        passages = [get_passage(self.searcher, rewrites[rewrite_method][1]) for rewrite_method in
-                    RewritesBertQPP.REWRITE_METHODS]
+            top_doc_ids = [x[0] for x in res_list[:self.top_docs]]
+            rewrites[rewrite_ctx['method']] = (rewrite, top_doc_ids)
+        queries,passages=[],[]
+        for rewrite_method in RewritesBertQPP.REWRITE_METHODS:
+            queries += [rewrites[rewrite_method][0]]*self.top_docs
+            passages += [get_passage(self.searcher, psg) for psg in rewrites[rewrite_method][1]]
         res = self.calc_group_scores(queries, passages)
         for i, rewrite_method in enumerate(RewritesBertQPP.REWRITE_METHODS):
             self.cache[rewrite_method][qid] = res[i]
